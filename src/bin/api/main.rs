@@ -7,7 +7,6 @@ use crossbeam::sync::WaitGroup;
 use tokio;
 use tokio_context::context::Context;
 
-
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();

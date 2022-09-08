@@ -3,39 +3,32 @@ use super::*;
 pub struct Condition<'a> {
     pub db: &'a str,
     pub table: &'a str,
-    pub uid: Option<&'a str>,
+    pub other: Vec<(String, Value<'a>)>,
 }
 
 impl<'a> Condition<'a> {
     pub fn parse(query: Query<&str, Value<'a>>) -> Self {
-        let mut _db: &str = "";
-        let mut _table: &str = "";
-        let mut _uid: Option<&str> = None;
+        let mut db: &str = "";
+        let mut table: &str = "";
+
+        let mut other = vec![];
 
         for (k, v) in query {
             match k {
                 DB => {
                     if let Value::String(s) = v {
-                        _db = s;
+                        db = s;
                     }
                 }
                 TABLE => {
                     if let Value::String(s) = v {
-                        _table = s
+                        table = s
                     }
                 }
-                UID => {
-                    if let Value::String(s) = v {
-                        _uid = Some(s)
-                    }
-                }
-                _ => {}
+                _ => other.push((k.to_string(), v)),
             }
         }
-        Self {
-            db: _db,
-            uid: _uid,
-            table: _table,
-        }
+
+        Self { db, table, other }
     }
 }

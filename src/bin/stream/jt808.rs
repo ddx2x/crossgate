@@ -44,7 +44,10 @@ impl crossgate_rs::net::Handle for JT808Handle {
     where
         Self: 'a;
 
-    fn handle<'r>(&mut self, conn: &'r mut crossgate_rs::net::Connection) -> Self::HandleFuture<'r> {
+    fn handle<'r>(
+        &mut self,
+        conn: &'r mut crossgate_rs::net::Connection,
+    ) -> Self::HandleFuture<'r> {
         async move {
             loop {
                 if let Ok(f) = conn.read_frame::<JT808Frame>(&JT808Frame::None).await {

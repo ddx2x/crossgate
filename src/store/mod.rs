@@ -14,7 +14,6 @@ mod condition;
 
 pub const DB: &'static str = "db";
 pub const TABLE: &'static str = "table";
-pub const UID: &'static str = "uid";
 
 pub type Context = tokio_context::context::Context;
 

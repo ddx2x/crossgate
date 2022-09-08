@@ -49,7 +49,11 @@ impl Base {
         if let Ok(rs) = self.loc.list(query!()).await {
             return rs;
         }
-        return vec![];
+        vec![]
+    }
+
+    pub async fn get(&self) -> Local {
+        self.loc.get(query!()).await.unwrap()
     }
 
     pub async fn watch(&self, ctx: Context) -> Receiver<oplog::Event<gps::Gps>> {

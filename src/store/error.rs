@@ -2,7 +2,7 @@
 pub enum StoreError {
     DataNotFound,
     DuplicateKey(String),
-    ConnectionError,
+    ConnectionError(String),
     /// All other errors
     Other(crate::Error),
 }

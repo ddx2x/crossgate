@@ -1,3 +1,6 @@
+use std::pin::Pin;
+
+use futures::{future::BoxFuture, Future};
 use hyper::{Body, Request, Response};
 
 mod User {
@@ -13,9 +16,9 @@ mod Role {
     struct Role {}
 }
 
-pub(crate) fn handle(req: &Request<Body>, w: &mut Response<Body>) -> crossgate_rs::micro::InterceptType {
-    log::info!("handle request: {:?}", req);
-
-    crossgate_rs::micro::InterceptType::Redirect
+pub fn handle<'a>(
+    r: &'a mut Request<Body>,
+    w: &'a mut Response<Body>,
+) -> BoxFuture<'a, crossgate_rs::micro::IntercepterType> {
+    Box::pin(async move { crossgate_rs::micro::IntercepterType::Redirect })
 }
- 

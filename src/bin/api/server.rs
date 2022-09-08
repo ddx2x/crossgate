@@ -2,6 +2,7 @@ use async_stream::stream;
 use axum::{
     extract::TypedHeader,
     response::sse::{Event, KeepAlive, Sse},
+    response::{IntoResponse, Response},
     routing::{get, get_service},
     Extension, Router,
 };
@@ -10,10 +11,20 @@ use tokio_context::context::Context;
 use futures::stream::Stream;
 use std::{convert::Infallible, net::SocketAddr, time::Duration};
 
-use crate::{base::Base, db_wrapper::get_mongo_store};
+use crate::{
+    base::{Base, Local},
+    db_wrapper::get_mongo_store,
+};
 
 async fn hello() -> &'static str {
     "base"
+}
+
+async fn list_local(Extension(base): Extension<Base>) -> impl IntoResponse {
+    axum::Json(base.list().await)
+}
+async fn get_local(Extension(base): Extension<Base>) -> impl IntoResponse {
+    axum::Json(base.get().await)
 }
 
 async fn watch(
@@ -47,6 +58,8 @@ pub async fn run(addr: SocketAddr) {
 
     let app = Router::new()
         .route("/base/watch", get(watch))
+        .route("/base/locals", get(list_local))
+        .route("/base/local", get(get_local))
         .route("/base", get(hello))
         .layer(Extension(base));
 

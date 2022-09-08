@@ -54,7 +54,7 @@ where
     pub async fn watch(
         &self,
         ctx: Context,
-        q: Query<&str, Value<'_>>
+        q: Query<&str, Value<'_>>,
     ) -> Receiver<oplog::Event<T>> {
         self.store
             .watch(ctx, self.schema.to_string(), self.table.to_string(), q)

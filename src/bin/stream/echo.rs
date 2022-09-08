@@ -28,7 +28,9 @@ impl crossgate_rs::net::Frame for EchoFrame {
             "hello" => Ok(EchoFrame::Response("world\r\n".to_string())),
             "haha" => Ok(EchoFrame::Response("xixi\r\n".to_string())),
             "bye" | "quit" => Err(crossgate_rs::net::FrameError::Exit),
-            _ => Err(crossgate_rs::net::FrameError::ParseError(line.trim().to_string())),
+            _ => Err(crossgate_rs::net::FrameError::ParseError(
+                line.trim().to_string(),
+            )),
         }
     }
 
@@ -40,9 +42,11 @@ impl crossgate_rs::net::Frame for EchoFrame {
             EchoFrame::Response(s) => w
                 .write_all(s.as_bytes())
                 .map_err(|e| crossgate_rs::net::FrameError::ParseError(e.to_string())),
-            _ => w
-                .write_all("unknown command\r\n".as_bytes())
-                .map_err(|e| crossgate_rs::net::FrameError::Other(crossgate_rs::net::NetError::InternalError(e.to_string()))),
+            _ => w.write_all("unknown command\r\n".as_bytes()).map_err(|e| {
+                crossgate_rs::net::FrameError::Other(crossgate_rs::net::NetError::InternalError(
+                    e.to_string(),
+                ))
+            }),
         }
     }
 }
