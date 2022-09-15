@@ -37,18 +37,20 @@ where
         res
     }
 
-    pub async fn list(&self, q: Query<&str, Value<'_>>) -> Result<Vec<T>, ServiceError> {
-        match self.store.list(self.query(&q)).await {
-            Ok(r) => Ok(r),
-            Err(e) => Err(ServiceError::InternalError(e)),
-        }
+    pub async fn list(&self, q: Query<&str, Value<'_>>) -> crate::Result<Vec<T>> {
+        Ok(self.store.list(self.query(&q)).await?)
     }
 
-    pub async fn get(&self, q: Query<&str, Value<'_>>) -> Result<T, ServiceError> {
-        match self.store.get(self.query(&q)).await {
-            Ok(r) => Ok(r),
-            Err(e) => Err(ServiceError::InternalError(e)),
-        }
+    pub async fn get(&self, q: Query<&str, Value<'_>>) -> crate::Result<T> {
+        Ok(self.store.get(self.query(&q)).await?)
+    }
+
+    pub async fn save(&self, t: T, q: Query<&str, Value<'_>>) -> crate::Result<()> {
+        Ok(self.store.save(t, self.query(&q)).await?)
+    }
+
+    pub async fn remove(&self, q: Query<&str, Value<'_>>) -> crate::Result<()> {
+        Ok(self.store.remove(self.query(&q)).await?)
     }
 
     pub async fn watch(

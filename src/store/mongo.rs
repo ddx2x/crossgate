@@ -2,14 +2,17 @@ use super::Context;
 use super::{condition::Condition, Query, StoreError, Stroage, Value};
 use crate::object::Object;
 
+use bson::oid::ObjectId;
 use bson::{doc, Document};
-use futures::TryStreamExt;
+
+use futures::{Future, TryStreamExt};
 use std::fmt::Debug;
-use std::future::Future;
 
 use mongodb::Client;
 
 use serde::de::DeserializeOwned;
+use serde::Serialize;
+
 use tokio::sync::mpsc::Receiver;
 
 #[derive(Debug, Clone)]
@@ -29,7 +32,7 @@ impl MongoStore {
                 let client = Client::with_options(options).unwrap();
                 Ok(Self { client })
             }
-            Err(e) => Err(StoreError::ConnectionError(e.to_string()))
+            Err(e) => Err(StoreError::ConnectionError(e.to_string())),
         }
     }
 }
@@ -42,12 +45,15 @@ impl MongoStore {
     fn condition<'a>(&self, q: Query<&'a str, Value<'a>>) -> (&'a str, &'a str, Document) {
         let condition = Condition::parse(q);
         let mut doc = doc! {};
-        for (k, v) in condition.other {
+        for (mut k, v) in condition.other {
+            if k == crate::store::UID {
+                k = "_id".to_string(); //rewrite default uid to _id
+            }
             match v {
                 Value::String(s) => doc.insert(k, s),
                 Value::Number(n) => doc.insert(k, n),
                 Value::Boolean(b) => doc.insert(k, b),
-                Value::Array(a) => todo!(),
+                Value::Array(_) => todo!(),
                 Value::Pair(_) => todo!(),
                 Value::Null => todo!(),
             };
@@ -58,13 +64,21 @@ impl MongoStore {
 
 impl<T> Stroage<T> for MongoStore
 where
-    T: Object + DeserializeOwned + Unpin + Debug,
+    T: Object + DeserializeOwned + Serialize + Unpin + Debug,
 {
-    type VectorFuture<'a> = impl Future<Output = Result<Vec<T>, StoreError>>
+    type ListFuture<'a> = impl Future<Output = crate::Result<Vec<T>>>
     where
         Self: 'a;
 
-    type Future<'a> = impl Future<Output = Result<T, StoreError>> 
+    type GetFuture<'a> = impl Future<Output =  crate::Result<T>> 
+    where
+        Self: 'a;
+
+    type SaveFuture<'a> = impl Future<Output =  crate::Result<()>> 
+    where
+        Self: 'a;
+
+    type RemoveFuture<'a>= impl Future<Output =  crate::Result<()>> 
     where
         Self: 'a;
 
@@ -72,14 +86,19 @@ where
     where
         Self: 'a;
 
-    fn list<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::VectorFuture<'r> {
+    fn list<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::ListFuture<'r> {
         let block = async move {
             let (db, table, filter) = self.condition(q);
             let c = self.collection::<T>(db, table);
 
             let mut cursor = match c.find(filter, None).await {
                 Ok(c) => c,
-                Err(e) => return Err(StoreError::Other(Box::new(e))),
+                Err(e) => {
+                    return Err(anyhow::format_err!(
+                        "mongodb find error: {:?}",
+                        StoreError::Other(Box::new(e))
+                    ))
+                }
             };
 
             let mut items = vec![];
@@ -92,7 +111,12 @@ where
                         }
                         break;
                     }
-                    Err(e) => return Err(StoreError::Other(Box::new(e))),
+                    Err(e) => {
+                        return Err(anyhow::format_err!(
+                            "mongodb find cursor error: {:?}",
+                            StoreError::Other(Box::new(e))
+                        ))
+                    }
                 }
             }
 
@@ -101,7 +125,7 @@ where
         block
     }
 
-    fn get<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::Future<'r> {
+    fn get<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::GetFuture<'r> {
         let block = async move {
             let (db, table, filter) = self.condition(q);
             let c = self.collection::<T>(db, table);
@@ -114,7 +138,12 @@ where
                         return Err(StoreError::DataNotFound.into());
                     }
                 }
-                Err(e) => return Err(StoreError::Other(Box::new(e))),
+                Err(e) => {
+                    return Err(anyhow::format_err!(
+                        "mongodb get error: {:?}",
+                        StoreError::Other(Box::new(e))
+                    ))
+                }
             }
         };
         block
@@ -128,10 +157,40 @@ where
         q: Query<&str, Value<'_>>,
     ) -> Self::StreamFuture<'r> {
         let client = self.client.clone();
-        async move {
-            let oplog = oplog::subscribe::<T>(ctx, client, &db, &table, None).unwrap();
+        let (_, _, filter) = self.condition(q);
+        let block = async move {
+            let oplog = oplog::subscribe::<T>(ctx, client, &db, &table, Some(filter)).unwrap();
             oplog
-        }
+        };
+
+        block
+    }
+
+    fn save<'r>(&'r self, t: T, q: Query<&str, Value<'r>>) -> Self::SaveFuture<'r> {
+        let (db, table, _) = self.condition(q);
+        let c = self.collection::<T>(db, table);
+        let block = async move {
+            let mut t = t;
+            if t.uid().len() == 0 || t.uid() == "" {
+                t.generate(|| -> String { ObjectId::new().to_string() });
+            }
+            let _ = c.insert_one(t, None).await?;
+            Ok(())
+        };
+
+        block
+    }
+
+    fn delete<'r>(&'r self, q: Query<&str, Value<'r>>) -> Self::RemoveFuture<'r> {
+        let (db, table, filter) = self.condition(q);
+        let c = self.collection::<T>(db, table);
+
+        let block = async move {
+            let _ = c.delete_many(filter, None).await?;
+            Ok(())
+        };
+
+        block
     }
 }
 

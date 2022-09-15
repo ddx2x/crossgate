@@ -14,21 +14,21 @@ pub fn decorate(args: TokenStream, input: TokenStream) -> TokenStream {
     let meta = vec![
         syn::Field::parse_named
             .parse2(quote! {
-               #[serde(alias = "uid", alias = "_id",alias = "id",alias = "uuid")]
+               #[serde(rename(serialize = "_id", deserialize = "_id"))]
                #[serde(default)]
-               uid: String
+               pub uid: String
             })
             .unwrap(),
         syn::Field::parse_named
             .parse2(quote! {
                 #[serde(default)]
-                version: u64
+                pub version: u64
             })
             .unwrap(),
         syn::Field::parse_named
             .parse2(quote! {
                 #[serde(default="get_kind")]
-                kind: String
+                pub kind: String
             })
             .unwrap(),
     ];
@@ -51,11 +51,16 @@ pub fn decorate(args: TokenStream, input: TokenStream) -> TokenStream {
             fn kind(&self) -> &str {
                 &self.kind
             }
+            fn generate(&mut self, f: fn() -> String){
+                self.uid = f()
+            }
         }
 
-        fn get_kind() -> String{
+        pub fn get_kind() -> String{
             #kind.to_string()
         }
+
+
     };
 
     ret.into()

@@ -1,5 +1,5 @@
+use futures::Future;
 use std::collections::HashMap;
-use std::future::Future;
 use tokio::sync::mpsc::Receiver;
 
 mod mongo;
@@ -14,6 +14,7 @@ mod condition;
 
 pub const DB: &'static str = "db";
 pub const TABLE: &'static str = "table";
+pub const UID: &'static str = "uid";
 
 pub type Context = tokio_context::context::Context;
 
@@ -67,11 +68,19 @@ macro_rules! query {
 }
 
 pub trait Stroage<T: Object>: Sync + Send + Clone + 'static {
-    type VectorFuture<'a>: Future<Output = Result<Vec<T>, StoreError>>
+    type ListFuture<'a>: Future<Output = crate::Result<Vec<T>>>
     where
         Self: 'a;
 
-    type Future<'a>: Future<Output = Result<T, StoreError>>
+    type GetFuture<'a>: Future<Output = crate::Result<T>>
+    where
+        Self: 'a;
+
+    type SaveFuture<'a>: Future<Output = crate::Result<()>>
+    where
+        Self: 'a;
+
+    type RemoveFuture<'a>: Future<Output = crate::Result<()>>
     where
         Self: 'a;
 
@@ -79,9 +88,13 @@ pub trait Stroage<T: Object>: Sync + Send + Clone + 'static {
     where
         Self: 'a;
 
-    fn list<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::VectorFuture<'r>;
+    fn save<'r>(&'r self, t: T, q: Query<&str, Value<'r>>) -> Self::SaveFuture<'r>;
 
-    fn get<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::Future<'r>;
+    fn delete<'r>(&'r self, q: Query<&str, Value<'r>>) -> Self::RemoveFuture<'r>;
+
+    fn list<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::ListFuture<'r>;
+
+    fn get<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::GetFuture<'r>;
 
     fn watch<'r>(
         &'r self,
@@ -110,14 +123,29 @@ where
     pub fn get<'r>(
         &'r self,
         q: Query<&'r str, Value<'r>>,
-    ) -> impl Future<Output = Result<T, StoreError>> + 'r {
+    ) -> impl Future<Output = crate::Result<T>> + 'r {
         async move { self.store.get(q).await }
+    }
+
+    pub fn save<'r>(
+        &'r self,
+        t: T,
+        q: Query<&'r str, Value<'r>>,
+    ) -> impl Future<Output = crate::Result<()>> + 'r {
+        async move { self.store.save(t, q).await }
+    }
+
+    pub fn remove<'r>(
+        &'r self,
+        q: Query<&'r str, Value<'r>>,
+    ) -> impl Future<Output = crate::Result<()>> + 'r {
+        async move { self.store.delete(q).await }
     }
 
     pub fn list<'r>(
         &'r self,
         q: Query<&'r str, Value<'r>>,
-    ) -> impl Future<Output = Result<Vec<T>, StoreError>> + 'r {
+    ) -> impl Future<Output = crate::Result<Vec<T>>> + 'r {
         async move { self.store.list(q).await }
     }
 
