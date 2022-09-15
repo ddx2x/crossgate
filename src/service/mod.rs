@@ -4,7 +4,6 @@ use crate::object::Object;
 use crate::query;
 use crate::store::{self, Context, Query, Stores, Stroage, Value};
 
-use error::ServiceError;
 use tokio::sync::mpsc::Receiver;
 
 #[derive(Debug, Clone)]
