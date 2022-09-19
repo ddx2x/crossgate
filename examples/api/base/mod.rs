@@ -28,7 +28,7 @@ impl crossgate_rs::micro::Service for Base {
 }
 
 impl Base {
-    pub fn create(addr: SocketAddr, store: &MongoStore) -> Self {
+    pub fn create(addr: &SocketAddr, store: &MongoStore) -> Self {
         let base = Self {
             loc: Service::<Local, MongoStore>::new(
                 "base".to_string(),
@@ -40,7 +40,7 @@ impl Base {
                 "gps_latest".to_string(),
                 Stores::new(store.clone()),
             ),
-            addr: addr,
+            addr: addr.clone(),
         };
         base
     }

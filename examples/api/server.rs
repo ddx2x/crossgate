@@ -8,7 +8,7 @@ use axum::{
 };
 use tokio_context::context::Context;
 
-use futures::stream::Stream;
+use futures::{future::BoxFuture, stream::Stream};
 use std::{convert::Infallible, net::SocketAddr, time::Duration};
 
 use crate::{
@@ -50,21 +50,26 @@ async fn watch(
     )
 }
 
-pub async fn run(addr: SocketAddr) {
-    // build our application with a route
-    let base =
-        crossgate_rs::micro::make_service(crate::base::Base::create(addr, get_mongo_store().await))
-            .await;
+pub fn run<'a>(addr: &'a SocketAddr) -> BoxFuture<'a, ()> {
+    let block = async move {
+        let base = crossgate_rs::micro::make_service(crate::base::Base::create(
+            addr,
+            get_mongo_store().await,
+        ))
+        .await;
 
-    let app = Router::new()
-        .route("/base/watch", get(watch))
-        .route("/base/locals", get(list_local))
-        .route("/base/local", get(get_local))
-        .route("/base", get(hello))
-        .layer(Extension(base));
+        let app = Router::new()
+            .route("/base/watch", get(watch))
+            .route("/base/locals", get(list_local))
+            .route("/base/local", get(get_local))
+            .route("/base", get(hello))
+            .layer(Extension(base));
 
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+        axum::Server::bind(&addr)
+            .serve(app.into_make_service())
+            .await
+            .unwrap();
+    };
+
+    Box::pin(block)
 }

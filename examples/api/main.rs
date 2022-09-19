@@ -3,9 +3,7 @@ mod base;
 mod db_wrapper;
 mod server;
 
-use crossbeam::sync::WaitGroup;
 use tokio;
-use tokio_context::context::Context;
 
 #[tokio::main]
 async fn main() {
@@ -16,22 +14,12 @@ async fn main() {
 
     log::info!("listen_addr0: {}", listen_addr0);
 
-    let (ctx, handle) = Context::new();
-    let wg = WaitGroup::new();
-
-    crossgate_rs::plugin::init_plugin(
-        ctx,
-        wg.clone(),
-        crossgate_rs::plugin::ServiceType::WebService,
+    let addr = listen_addr0.parse::<SocketAddr>().unwrap();
+    
+    crossgate_rs::micro::web_service_run(
+        &addr,
+        server::run,
         crossgate_rs::plugin::PluginType::Mongodb,
     )
-    .await;
-
-    tokio::select! {
-        _ = server::run(listen_addr0.parse::<SocketAddr>().unwrap()) => {},
-        _ = tokio::signal::ctrl_c() => {
-            handle.cancel();
-            wg.wait();
-        },
-    }
+    .await
 }
