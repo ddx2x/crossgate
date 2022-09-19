@@ -9,17 +9,22 @@ use tokio;
 async fn main() {
     dotenv::dotenv().ok();
     env_logger::init();
-    let listen_addr0 =
-        ::std::env::var("LISTEN_ADDRESS").unwrap_or_else(|_| "0.0.0.0:3000".to_string());
+    let listen_addr =
+        ::std::env::var("LISTEN_ADDRESS").unwrap_or_else(|_| get_address().unwrap().to_string());
 
-    log::info!("listen_addr0: {}", listen_addr0);
+    log::info!("listen_addr: {}", listen_addr);
 
-    let addr = listen_addr0.parse::<SocketAddr>().unwrap();
-    
+    let addr = listen_addr.parse::<SocketAddr>().unwrap();
+
     crossgate_rs::micro::web_service_run(
         &addr,
         server::run,
         crossgate_rs::plugin::PluginType::Mongodb,
     )
     .await
+}
+
+pub fn get_address() -> anyhow::Result<SocketAddr> {
+    use std::net::TcpListener;
+    Ok(TcpListener::bind("0.0.0.0:0")?.local_addr()?)
 }

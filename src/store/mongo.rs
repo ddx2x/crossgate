@@ -6,6 +6,7 @@ use bson::oid::ObjectId;
 use bson::{doc, Document};
 
 use futures::{Future, TryStreamExt};
+use mongodb::options::{FindOneOptions, FindOptions};
 use std::fmt::Debug;
 
 use mongodb::Client;
@@ -42,8 +43,33 @@ impl MongoStore {
         self.client.database(db).collection::<T>(table)
     }
 
-    fn condition<'a>(&self, q: Query<&'a str, Value<'a>>) -> (&'a str, &'a str, Document) {
+    fn find_option(&self, condition: &Condition) -> FindOptions {
+        let mut opt = FindOptions::builder().build();
+
+        if condition.page != 0 {
+            opt.skip = Some((condition.page * condition.page_size) as u64);
+            opt.limit = Some(condition.page_size as i64);
+        }
+
+        if condition.sort.len() > 0 {
+            let mut doc = Document::new();
+            for s in &condition.sort {
+                doc.insert(s, 1);
+            }
+            opt.sort = Some(doc);
+        }
+
+        opt
+    }
+
+    fn condition<'a>(
+        &self,
+        q: Query<&'a str, Value<'a>>,
+    ) -> (&'a str, &'a str, Document, FindOptions) {
         let condition = Condition::parse(q);
+
+        let find_options = self.find_option(&condition);
+
         let mut doc = doc! {};
         for (mut k, v) in condition.other {
             if k == crate::store::UID {
@@ -58,7 +84,7 @@ impl MongoStore {
                 Value::Null => todo!(),
             };
         }
-        (condition.db, condition.table, doc)
+        (condition.db, condition.table, doc, find_options)
     }
 }
 
@@ -88,10 +114,10 @@ where
 
     fn list<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::ListFuture<'r> {
         let block = async move {
-            let (db, table, filter) = self.condition(q);
+            let (db, table, filter, find_opt) = self.condition(q);
             let c = self.collection::<T>(db, table);
 
-            let mut cursor = match c.find(filter, None).await {
+            let mut cursor = match c.find(filter, Some(find_opt)).await {
                 Ok(c) => c,
                 Err(e) => {
                     return Err(anyhow::format_err!(
@@ -127,7 +153,7 @@ where
 
     fn get<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::GetFuture<'r> {
         let block = async move {
-            let (db, table, filter) = self.condition(q);
+            let (db, table, filter, _) = self.condition(q);
             let c = self.collection::<T>(db, table);
 
             match c.find_one(filter, None).await {
@@ -157,7 +183,7 @@ where
         q: Query<&str, Value<'_>>,
     ) -> Self::StreamFuture<'r> {
         let client = self.client.clone();
-        let (_, _, filter) = self.condition(q);
+        let (_, _, filter, _) = self.condition(q);
         let block = async move {
             let oplog = oplog::subscribe::<T>(ctx, client, &db, &table, Some(filter)).unwrap();
             oplog
@@ -167,7 +193,7 @@ where
     }
 
     fn save<'r>(&'r self, t: T, q: Query<&str, Value<'r>>) -> Self::SaveFuture<'r> {
-        let (db, table, _) = self.condition(q);
+        let (db, table, _, _) = self.condition(q);
         let c = self.collection::<T>(db, table);
         let block = async move {
             let mut t = t;
@@ -182,7 +208,7 @@ where
     }
 
     fn delete<'r>(&'r self, q: Query<&str, Value<'r>>) -> Self::RemoveFuture<'r> {
-        let (db, table, filter) = self.condition(q);
+        let (db, table, filter, _) = self.condition(q);
         let c = self.collection::<T>(db, table);
 
         let block = async move {

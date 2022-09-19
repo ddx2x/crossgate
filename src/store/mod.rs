@@ -14,6 +14,11 @@ mod condition;
 
 pub const DB: &'static str = "db";
 pub const TABLE: &'static str = "table";
+
+pub const PAGE: &'static str = "_page";
+pub const PAGE_SIZE: &'static str = "_page_size";
+pub const SORT: &'static str = "_sort";
+
 pub const UID: &'static str = "uid";
 
 pub type Context = tokio_context::context::Context;

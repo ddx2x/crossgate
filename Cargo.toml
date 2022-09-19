@@ -31,7 +31,7 @@ num_cpus = "1.13.1"
 once_cell = "1"
 
 oplog = { git = "https://gitee.com/ddx2x-p/oplog-rs.git", branch = "master" }
-crossgate-rs = { git = "https://gitee.com/ddx2x-p/crossgate-rs.git", branch = "master" }
+crossgate-rs = { git = "https://gitee.com/ddx2x-p/crossgate-rs.git", branch = "main" }
 
 # axum-web
 tokio-stream = "0.1"
