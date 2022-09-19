@@ -30,7 +30,7 @@ thiserror = "1.0.35"
 num_cpus = "1.13.1"
 once_cell = "1"
 
-oplog = { git = "https://github.com/ddx2x/oplog-rs.git", branch = "master" }
+oplog = { git = "https://github.com/laik/oplog-rs.git", branch = "master" }
 crossgate-rs = { git = "https://github.com/ddx2x/crossgate-rs.git", branch = "main" }
 
 # axum-web
