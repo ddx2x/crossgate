@@ -49,8 +49,12 @@ async-stream = "0.3"
 [dependencies.helper]
 path = './src/object/helper'
 
+[dependencies.parser]
+path = './parser'
+
 [dev-dependencies]
 tokio-test = "0.4.2"
+
 
 [[bin]]
 name = "api"
@@ -65,8 +69,9 @@ name = "stream"
 path = "examples/stream/main.rs"
 
 [[bin]]
-name = "oplog"
-path = "src/bin/oplog/main.rs"
+name = "cond"
+path = "examples/cond/main.rs"
+
 
 [profile.release]
 opt-level = 'z'

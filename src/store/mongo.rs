@@ -80,7 +80,6 @@ impl MongoStore {
                 Value::Number(n) => doc.insert(k, n),
                 Value::Boolean(b) => doc.insert(k, b),
                 Value::Array(_) => todo!(),
-                Value::Pair(_) => todo!(),
                 Value::Null => todo!(),
             };
         }

@@ -64,6 +64,3 @@ impl<'a> Condition<'a> {
         }
     }
 }
-
-
-
