@@ -25,13 +25,13 @@ pub type Context = tokio_context::context::Context;
 
 // "UID": {Equal: "123"}
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PredicateOperator {
-    Equal,
-    NotEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
+pub enum Op {
+    Eq,
+    Ne,
+    Gt,
+    Gte,
+    Le,
+    Lte,
     Like,
     NotLike,
     In,
@@ -40,7 +40,17 @@ pub enum PredicateOperator {
     NotBetween,
     IsNull,
     IsNotNull,
+    And,
+    Or,
 }
+
+// where <Exp>
+//  commodity_id >= 1024                     =>   ( And ,(Gte,commodity_id,1024))
+//  commodity_id = 123                       =>   ( And ,(Eq,commodity_id,123) )
+//  commodity_id >1024 && status != 1        =>   ( And ,(Ne status,1), (Gt,commodity_id,1024)) )
+//  ((a=1 && b=2) || (b=2 && a=3))           =>   ( Or  ,( And, (Eq,q,1))
+
+pub struct Operator<'a>(Op, &'a str, Value<'a>);
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
@@ -48,10 +58,9 @@ pub enum Value<'a> {
     Number(f64),
     Boolean(bool),
     Array(Vec<Value<'a>>),
-    Pair(HashMap<PredicateOperator, Value<'a>>),
+    Pair(HashMap<Op, Value<'a>>),
     Null,
 }
-
 pub type Query<K, V> = HashMap<K, V>;
 
 #[macro_export]
