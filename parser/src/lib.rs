@@ -6,8 +6,6 @@ use lrpar::{lrpar_mod, Span};
 lrlex_mod!("cond.l");
 lrpar_mod!("cond.y");
 
-pub type Result<T> = anyhow::Result<T>;
-
 // a=1
 // a=1 && b=1
 // a=1 || b=1
