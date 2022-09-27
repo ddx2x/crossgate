@@ -24,7 +24,7 @@ async fn list_local(Extension(base): Extension<Base>) -> impl IntoResponse {
     axum::Json(base.list().await)
 }
 async fn get_local(Extension(base): Extension<Base>) -> impl IntoResponse {
-    axum::Json(base.get().await)
+    axum::Json(base.get("abc").await)
 }
 
 async fn watch(

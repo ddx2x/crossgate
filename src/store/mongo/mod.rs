@@ -85,26 +85,25 @@ where
                 filter,
                 page,
                 page_size,
-                sorts: sort,
+                sorts,
             } = q;
 
             let c = self.collection::<T>(&db, &table);
 
             let mut opt = FindOptions::builder().build();
 
-            if q.page != 0 {
-                opt.skip = Some((q.page * q.page_size) as u64);
-                opt.limit = Some(q.page_size as i64);
+            if page != 0 {
+                opt.skip = Some((page * page_size) as u64);
+                opt.limit = Some(page_size as i64);
             }
 
-            // let sorts = q.sorts();
-            // if sorts.len() > 0 {
-            //     let mut doc = Document::new();
-            //     for s in sorts {
-            //         doc.insert(s.clone(), 1);
-            //     }
-            //     opt.sort = Some(doc);
-            // }
+            if sorts.len() > 0 {
+                let mut doc = Document::new();
+                for s in sorts {
+                    doc.insert(s.clone(), 1);
+                }
+                opt.sort = Some(doc);
+            }
 
             let mut cursor = match c.find(filter.get(), Some(opt)).await {
                 Ok(c) => c,

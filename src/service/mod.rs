@@ -28,26 +28,26 @@ where
         }
     }
 
-    fn query(&self, q: Condition<F>) -> Condition<F> {
+    fn intercept(&self, q: Condition<F>) -> Condition<F> {
         let mut q = q;
         q.with_db(&self.schema).with_table(&self.table);
         q
     }
 
     pub async fn list(&self, q: Condition<F>) -> crate::Result<Vec<T>> {
-        Ok(self.store.list(self.query(q)).await?)
+        Ok(self.store.list(self.intercept(q)).await?)
     }
 
     pub async fn get(&self, q: Condition<F>) -> crate::Result<T> {
-        Ok(self.store.get(self.query(q)).await?)
+        Ok(self.store.get(self.intercept(q)).await?)
     }
 
     pub async fn save(&self, t: T, q: Condition<F>) -> crate::Result<()> {
-        Ok(self.store.save(t, self.query(q)).await?)
+        Ok(self.store.save(t, self.intercept(q)).await?)
     }
 
     pub async fn remove(&self, q: Condition<F>) -> crate::Result<()> {
-        Ok(self.store.remove(self.query(q)).await?)
+        Ok(self.store.remove(self.intercept(q)).await?)
     }
 
     pub async fn watch(&self, ctx: Context, q: Condition<F>) -> Receiver<oplog::Event<T>> {

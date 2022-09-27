@@ -55,9 +55,9 @@ impl Base {
         vec![]
     }
 
-    pub async fn get(&self) -> Local {
+    pub async fn get(&self, name: &str) -> Local {
         let mut cond = Condition::new(MongoFilter(doc! {}));
-        cond.wheres("status=1").unwrap();
+        cond.wheres(&format!("status=1 && name={}", name)).unwrap();
         self.loc.get(cond).await.unwrap()
     }
 
