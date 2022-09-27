@@ -49,8 +49,8 @@ async-stream = "0.3"
 [dependencies.helper]
 path = './src/object/helper'
 
-[dependencies.parser]
-path = './parser'
+[dependencies.condition]
+path = './condition'
 
 [dev-dependencies]
 tokio-test = "0.4.2"

@@ -2,7 +2,6 @@
 %token TEXT INT '>=' '<=' '>' '<' 
 %left '||'
 %right '&&'
-// %nonassoc '||' 
 
 %%
 Expr -> Expr:

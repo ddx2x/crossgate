@@ -114,3 +114,17 @@ pub fn parse<'a>(s: &'a str) -> anyhow::Result<Expr> {
         None => return Err(anyhow::anyhow!("{}", "Unable to evaluate expression.")),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    #[test]
+    fn test_base() {
+        let sym = "a=1&&b=2||b=2&&c=1";
+        match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+}

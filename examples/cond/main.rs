@@ -1,6 +1,6 @@
 use std::io::{self, BufRead, Write};
 
-use parser::parse;
+use condition::parse;
 
 fn main() {
     let stdin = io::stdin();
