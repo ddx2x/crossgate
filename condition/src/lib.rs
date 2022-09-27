@@ -10,7 +10,12 @@ lrpar_mod!("cond.y");
 // a=1 && b=1
 // a=1 || b=1
 // a=1 && b=1 || c=1 && b=2
-#[derive(Debug)]
+// TODO :
+//   1.添加(1,2,3) array 解析
+//   2.添加 in、notin 解析
+//   3.添加 like/not like 解析
+
+#[derive(Clone, Debug)]
 pub enum Expr {
     And {
         span: Span,
@@ -84,7 +89,7 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Text(String), // abc="123"
     Number(u64),  // abc=123

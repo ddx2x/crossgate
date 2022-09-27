@@ -10,7 +10,8 @@ pub use error::StoreError;
 
 use crate::object::Object;
 
-mod condition;
+mod cond;
+
 
 pub const DB: &'static str = "db";
 pub const TABLE: &'static str = "table";
@@ -147,7 +148,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::{condition::Condition, Query, Value, DB, TABLE};
+    use super::{cond::Condition, Query, Value, DB, TABLE};
     #[test]
     fn test_condition() {
         let query: Query<&str, Value> =
