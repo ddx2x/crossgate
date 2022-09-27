@@ -42,7 +42,7 @@ pub enum Expr {
         field: String,
         value: Value,
     },
-    Le {
+    Lt {
         span: Span,
         field: String,
         value: Value,
