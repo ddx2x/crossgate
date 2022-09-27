@@ -2,11 +2,12 @@ pub mod gps;
 pub mod local;
 use std::net::SocketAddr;
 
-use crossgate::store::Stores;
+use bson::doc;
+use crossgate::store::{Condition, MongoFilter, Stores};
 pub use local::Local;
 
 use crossgate::service::{self, Service};
-use crossgate::{query, store::MongoStore};
+use crossgate::store::MongoStore;
 use tokio::sync::mpsc::Receiver;
 use tokio_context::context::Context;
 
@@ -14,8 +15,8 @@ use tokio_context::context::Context;
 pub struct Base {
     addr: SocketAddr,
 
-    loc: service::Service<Local, MongoStore>,
-    gps: service::Service<gps::Gps, MongoStore>,
+    loc: service::Service<Local, MongoFilter, MongoStore>,
+    gps: service::Service<gps::Gps, MongoFilter, MongoStore>,
 }
 
 impl crossgate_rs::micro::Service for Base {
@@ -30,12 +31,12 @@ impl crossgate_rs::micro::Service for Base {
 impl Base {
     pub fn create(addr: &SocketAddr, store: &MongoStore) -> Self {
         let base = Self {
-            loc: Service::<Local, MongoStore>::new(
+            loc: Service::<Local, MongoFilter, MongoStore>::new(
                 "base".to_string(),
                 "local".to_string(),
                 Stores::new(store.clone()),
             ),
-            gps: Service::<gps::Gps, MongoStore>::new(
+            gps: Service::<gps::Gps, MongoFilter, MongoStore>::new(
                 "base".to_string(),
                 "gps_latest".to_string(),
                 Stores::new(store.clone()),
@@ -46,17 +47,23 @@ impl Base {
     }
 
     pub async fn list(&self) -> Vec<Local> {
-        if let Ok(rs) = self.loc.list(query!()).await {
+        let mut cond = Condition::new(MongoFilter(doc! {}));
+        cond.wheres("status=1").unwrap();
+        if let Ok(rs) = self.loc.list(cond).await {
             return rs;
         }
         vec![]
     }
 
     pub async fn get(&self) -> Local {
-        self.loc.get(query!()).await.unwrap()
+        let mut cond = Condition::new(MongoFilter(doc! {}));
+        cond.wheres("status=1").unwrap();
+        self.loc.get(cond).await.unwrap()
     }
 
     pub async fn watch(&self, ctx: Context) -> Receiver<oplog::Event<gps::Gps>> {
-        self.gps.watch(ctx, query!()).await
+        let mut cond = Condition::new(MongoFilter(doc! {}));
+        cond.wheres("o.version>=0").unwrap();
+        self.gps.watch(ctx, cond).await
     }
 }

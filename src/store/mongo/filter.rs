@@ -1,8 +1,8 @@
-use std::{any, fmt::format};
-
-use super::*;
-use bson::{doc, Bson, Document};
+use crate::store::Filter;
+use bson::{doc, Document};
 use condition::parse;
+
+use super::GetFilter;
 
 pub enum MongoOp {
     Eq,
@@ -13,47 +13,10 @@ pub enum MongoOp {
     Ne,
 }
 
-#[derive(Debug)]
-pub struct Condition<'a> {
-    pub db: &'a str,
-    pub table: &'a str,
-    pub page: usize,
-    pub page_size: usize,
-    pub sort: Vec<String>,
+#[derive(Clone, Debug)]
+pub struct MongoFilter(pub Document);
 
-    pub other: Vec<(String, Value<'a>)>,
-
-    filter: Document,
-}
-
-impl<'a> Condition<'a> {
-    pub fn new() -> Self {
-        Self {
-            db: Default::default(),
-            table: Default::default(),
-            page: 0,
-            page_size: 10,
-            sort: Default::default(),
-            other: Default::default(),
-            filter: doc! {},
-        }
-    }
-    pub fn db(&mut self, db: &'a str) -> &mut Condition<'a> {
-        self.db = db;
-        self
-    }
-
-    pub fn parse_by_text(&mut self, input: &'a str) -> anyhow::Result<&mut Condition<'a>> {
-        let expr = match parse(input) {
-            Ok(s) => s,
-            Err(e) => return Err(anyhow::anyhow!("{:?}", e)),
-        };
-
-        self.filter = self.eval(&[expr])?.into_iter().flatten().collect();
-
-        Ok(self)
-    }
-
+impl MongoFilter {
     fn gen_doc(k: &str, v: &condition::Value, op: MongoOp) -> anyhow::Result<Document> {
         let mut doc = doc! {};
         let v = match v {
@@ -75,7 +38,7 @@ impl<'a> Condition<'a> {
         Ok(doc)
     }
 
-    fn eval(&mut self, exprs: &[condition::Expr]) -> anyhow::Result<Vec<bson::Document>> {
+    fn eval(&self, exprs: &[condition::Expr]) -> anyhow::Result<Vec<bson::Document>> {
         let mut docs = vec![];
         for expr in exprs.into_iter() {
             match expr {
@@ -134,65 +97,25 @@ impl<'a> Condition<'a> {
                 _ => return Err(anyhow::anyhow!("not support op")),
             }
         }
-
         Ok(docs)
     }
+}
 
-    pub fn parse(query: Query<&str, Value<'a>>) -> Self {
-        let mut db: &str = "";
-        let mut table: &str = "";
-        let mut page: usize = 0;
-        let mut page_size: usize = 0;
-        let mut sort = vec![];
+impl Filter for MongoFilter {
+    fn parse(&mut self, input: &str) -> anyhow::Result<Box<Self>> {
+        let expr = match parse(input) {
+            Ok(s) => s,
+            Err(e) => return Err(anyhow::anyhow!("{:?}", e)),
+        };
+        self.0 = self.eval(&[expr])?.into_iter().flatten().collect();
 
-        let mut other = vec![];
+        Ok(Box::new(self.clone()))
+    }
+}
 
-        let filter = doc! {};
-
-        for (k, v) in query {
-            match k {
-                DB => {
-                    if let Value::String(s) = v {
-                        db = s;
-                    }
-                }
-                TABLE => {
-                    if let Value::String(s) = v {
-                        table = s
-                    }
-                }
-                PAGE => {
-                    if let Value::Number(s) = v {
-                        page = s as usize
-                    }
-                }
-                PAGE_SIZE => {
-                    if let Value::Number(s) = v {
-                        page_size = s as usize
-                    }
-                }
-                SORT => {
-                    if let Value::Array(s) = v {
-                        for i in s {
-                            if let Value::String(v1) = i {
-                                sort.push(v1.to_string())
-                            }
-                        }
-                    }
-                }
-                _ => other.push((k.to_string(), v)),
-            }
-        }
-
-        Self {
-            db,
-            table,
-            page,
-            page_size,
-            other,
-            sort,
-            filter,
-        }
+impl GetFilter for MongoFilter {
+    fn get(self) -> Document {
+        self.0
     }
 }
 
@@ -202,8 +125,8 @@ mod test {
     #[test]
     fn test_parse_cond() {
         let sym = "a=1&&b=2||c=1&&b=2";
-        let mut cond = Condition::new();
-        match cond.parse_by_text(sym) {
+        let mut mf = MongoFilter(doc! {});
+        match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
         }

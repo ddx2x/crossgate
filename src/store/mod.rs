@@ -1,59 +1,23 @@
-use futures::Future;
-use std::collections::HashMap;
-use tokio::sync::mpsc::Receiver;
-
 mod mongo;
-pub use mongo::MongoStore;
-
+pub use mongo::*;
+mod condition;
+pub use self::condition::Condition;
 mod error;
 pub use error::StoreError;
 
+use futures::Future;
+use std::fmt::Debug;
+use tokio::sync::mpsc::Receiver;
+
 use crate::object::Object;
-
-mod cond;
-
-
-pub const DB: &'static str = "db";
-pub const TABLE: &'static str = "table";
-
-pub const PAGE: &'static str = "_page";
-pub const PAGE_SIZE: &'static str = "_page_size";
-pub const SORT: &'static str = "_sort";
-
-pub const UID: &'static str = "uid";
 
 pub type Context = tokio_context::context::Context;
 
-#[derive(Debug, Clone)]
-pub enum Value<'a> {
-    String(&'a str),
-    Number(f64),
-    Boolean(bool),
-    Array(Vec<Value<'a>>),
-    Null,
+pub trait Filter: Clone + Debug {
+    fn parse(&mut self, input: &str) -> anyhow::Result<Box<Self>>;
 }
 
-pub type Query<K, V> = HashMap<K, V>;
-
-#[macro_export]
-macro_rules! query {
-    (@single $($x:tt)*) => (());
-    (@count $($rest:expr),*) => (<[()]>::len(&[$(query!(@single $rest)),*]));
-
-    ($($key:expr => $value:expr,)+) => { query!($($key => $value),+) };
-    ($($key:expr => $value:expr),*) => {
-        {
-            let _cap = query!(@count $($key),*);
-            let mut _map = ::std::collections::HashMap::with_capacity(_cap);
-            $(
-                let _ = _map.insert($key, $value);
-            )*
-            _map
-        }
-    };
-}
-
-pub trait Stroage<T: Object>: Sync + Send + Clone + 'static {
+pub trait Stroage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     type ListFuture<'a>: Future<Output = crate::Result<Vec<T>>>
     where
         Self: 'a;
@@ -74,64 +38,61 @@ pub trait Stroage<T: Object>: Sync + Send + Clone + 'static {
     where
         Self: 'a;
 
-    fn save<'r>(&'r self, t: T, q: Query<&str, Value<'r>>) -> Self::SaveFuture<'r>;
+    fn save<'r>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r>;
 
-    fn delete<'r>(&'r self, q: Query<&str, Value<'r>>) -> Self::RemoveFuture<'r>;
+    fn delete<'r>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r>;
 
-    fn list<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::ListFuture<'r>;
+    fn list<'r>(&'r self, q: Condition<F>) -> Self::ListFuture<'r>;
 
-    fn get<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::GetFuture<'r>;
+    fn get<'r>(&'r self, q: Condition<F>) -> Self::GetFuture<'r>;
 
     fn watch<'r>(
         &'r self,
         ctx: Context,
         db: String,
         table: String,
-        q: Query<&str, Value<'_>>,
+        q: Condition<F>,
     ) -> Self::StreamFuture<'r>;
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Stores<T: Object, S: Stroage<T>> {
+pub struct Stores<T: Object, F: Filter, S: Stroage<T, F>> {
     _t: Option<T>,
+    _f: Option<F>,
     store: S,
 }
 
-impl<T, S> Stores<T, S>
+impl<T, F, S> Stores<T, F, S>
 where
     T: Object,
-    S: Stroage<T>,
+    F: Filter,
+    S: Stroage<T, F>,
 {
     pub fn new(s: S) -> Self {
-        Stores { _t: None, store: s }
+        Stores {
+            _t: None,
+            _f: None,
+            store: s,
+        }
     }
 
-    pub fn get<'r>(
-        &'r self,
-        q: Query<&'r str, Value<'r>>,
-    ) -> impl Future<Output = crate::Result<T>> + 'r {
+    pub fn get<'r>(&'r self, q: Condition<F>) -> impl Future<Output = crate::Result<T>> + 'r {
         async move { self.store.get(q).await }
     }
 
     pub fn save<'r>(
         &'r self,
         t: T,
-        q: Query<&'r str, Value<'r>>,
+        q: Condition<F>,
     ) -> impl Future<Output = crate::Result<()>> + 'r {
         async move { self.store.save(t, q).await }
     }
 
-    pub fn remove<'r>(
-        &'r self,
-        q: Query<&'r str, Value<'r>>,
-    ) -> impl Future<Output = crate::Result<()>> + 'r {
+    pub fn remove<'r>(&'r self, q: Condition<F>) -> impl Future<Output = crate::Result<()>> + 'r {
         async move { self.store.delete(q).await }
     }
 
-    pub fn list<'r>(
-        &'r self,
-        q: Query<&'r str, Value<'r>>,
-    ) -> impl Future<Output = crate::Result<Vec<T>>> + 'r {
+    pub fn list<'r>(&'r self, q: Condition<F>) -> impl Future<Output = crate::Result<Vec<T>>> + 'r {
         async move { self.store.list(q).await }
     }
 
@@ -140,7 +101,7 @@ where
         ctx: Context,
         db: String,
         table: String,
-        q: Query<&'r str, Value<'r>>,
+        q: Condition<F>,
     ) -> impl Future<Output = Receiver<oplog::Event<T>>> + 'r {
         async move { self.store.watch(ctx, db, table, q).await }
     }
@@ -148,13 +109,13 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::{cond::Condition, Query, Value, DB, TABLE};
+    // use super::{cond::Condition, Query, Value, DB, TABLE};
     #[test]
     fn test_condition() {
-        let query: Query<&str, Value> =
-            query!(DB => Value::String("pub"),TABLE => Value::String("user"));
-        let condition = Condition::parse(query);
-        assert_eq!(condition.db, "pub");
-        assert_eq!(condition.table, "user");
+        // let query: Query<&str, Value> =
+        //     query!(DB => Value::String("pub"),TABLE => Value::String("user"));
+        // let condition = Condition::parse(query);
+        // assert_eq!(condition.db, "pub");
+        // assert_eq!(condition.table, "user");
     }
 }

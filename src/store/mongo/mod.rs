@@ -1,12 +1,16 @@
-use super::Context;
-use super::{cond::Condition, Query, StoreError, Stroage, Value};
+mod filter;
+pub use filter::MongoFilter;
+
+use super::condition::Condition;
+use super::{Context, Filter};
+use super::{StoreError, Stroage};
 use crate::object::Object;
 
 use bson::oid::ObjectId;
-use bson::{doc, Document};
+use bson::Document;
 
 use futures::{Future, TryStreamExt};
-use mongodb::options::{FindOneOptions, FindOptions};
+use mongodb::options::FindOptions;
 use std::fmt::Debug;
 
 use mongodb::Client;
@@ -15,6 +19,10 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use tokio::sync::mpsc::Receiver;
+
+pub trait GetFilter {
+    fn get(self) -> Document;
+}
 
 #[derive(Debug, Clone)]
 pub struct MongoStore {
@@ -42,68 +50,26 @@ impl MongoStore {
     fn collection<'a, T>(&self, db: &str, table: &str) -> mongodb::Collection<T> {
         self.client.database(db).collection::<T>(table)
     }
-
-    fn find_option(&self, condition: &Condition) -> FindOptions {
-        let mut opt = FindOptions::builder().build();
-
-        if condition.page != 0 {
-            opt.skip = Some((condition.page * condition.page_size) as u64);
-            opt.limit = Some(condition.page_size as i64);
-        }
-
-        if condition.sort.len() > 0 {
-            let mut doc = Document::new();
-            for s in &condition.sort {
-                doc.insert(s, 1);
-            }
-            opt.sort = Some(doc);
-        }
-
-        opt
-    }
-
-    fn condition<'a>(
-        &self,
-        q: Query<&'a str, Value<'a>>,
-    ) -> (&'a str, &'a str, Document, FindOptions) {
-        let condition = Condition::parse(q);
-
-        let find_options = self.find_option(&condition);
-
-        let mut doc = doc! {};
-        for (mut k, v) in condition.other {
-            if k == crate::store::UID {
-                k = "_id".to_string(); //rewrite default uid to _id
-            }
-            match v {
-                Value::String(s) => doc.insert(k, s),
-                Value::Number(n) => doc.insert(k, n),
-                Value::Boolean(b) => doc.insert(k, b),
-                Value::Array(_) => todo!(),
-                Value::Null => todo!(),
-            };
-        }
-        (condition.db, condition.table, doc, find_options)
-    }
 }
 
-impl<T> Stroage<T> for MongoStore
+impl<T, F> Stroage<T, F> for MongoStore
 where
     T: Object + DeserializeOwned + Serialize + Unpin + Debug,
+    F: Filter + GetFilter,
 {
     type ListFuture<'a> = impl Future<Output = crate::Result<Vec<T>>>
     where
         Self: 'a;
 
-    type GetFuture<'a> = impl Future<Output =  crate::Result<T>> 
+    type GetFuture<'a> = impl Future<Output =  crate::Result<T>>
     where
         Self: 'a;
 
-    type SaveFuture<'a> = impl Future<Output =  crate::Result<()>> 
+    type SaveFuture<'a> = impl Future<Output =  crate::Result<()>>
     where
         Self: 'a;
 
-    type RemoveFuture<'a>= impl Future<Output =  crate::Result<()>> 
+    type RemoveFuture<'a>= impl Future<Output =  crate::Result<()>>
     where
         Self: 'a;
 
@@ -111,12 +77,36 @@ where
     where
         Self: 'a;
 
-    fn list<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::ListFuture<'r> {
+    fn list<'r>(&'r self, q: Condition<F>) -> Self::ListFuture<'r> {
         let block = async move {
-            let (db, table, filter, find_opt) = self.condition(q);
-            let c = self.collection::<T>(db, table);
+            let Condition {
+                db,
+                table,
+                filter,
+                page,
+                page_size,
+                sorts: sort,
+            } = q;
 
-            let mut cursor = match c.find(filter, Some(find_opt)).await {
+            let c = self.collection::<T>(&db, &table);
+
+            let mut opt = FindOptions::builder().build();
+
+            if q.page != 0 {
+                opt.skip = Some((q.page * q.page_size) as u64);
+                opt.limit = Some(q.page_size as i64);
+            }
+
+            // let sorts = q.sorts();
+            // if sorts.len() > 0 {
+            //     let mut doc = Document::new();
+            //     for s in sorts {
+            //         doc.insert(s.clone(), 1);
+            //     }
+            //     opt.sort = Some(doc);
+            // }
+
+            let mut cursor = match c.find(filter.get(), Some(opt)).await {
                 Ok(c) => c,
                 Err(e) => {
                     return Err(anyhow::format_err!(
@@ -150,12 +140,14 @@ where
         block
     }
 
-    fn get<'r>(&'r self, q: Query<&'r str, Value<'r>>) -> Self::GetFuture<'r> {
+    fn get<'r>(&'r self, q: Condition<F>) -> Self::GetFuture<'r> {
         let block = async move {
-            let (db, table, filter, _) = self.condition(q);
-            let c = self.collection::<T>(db, table);
+            let Condition {
+                db, table, filter, ..
+            } = q;
+            let c = self.collection::<T>(&db, &table);
 
-            match c.find_one(filter, None).await {
+            match c.find_one(filter.get(), None).await {
                 Ok(value) => {
                     if let Some(value) = value {
                         return Ok(value);
@@ -179,21 +171,22 @@ where
         ctx: Context,
         db: String,
         table: String,
-        q: Query<&str, Value<'_>>,
+        q: Condition<F>,
     ) -> Self::StreamFuture<'r> {
         let client = self.client.clone();
-        let (_, _, filter, _) = self.condition(q);
+        let Condition { filter, .. } = q;
         let block = async move {
-            let oplog = oplog::subscribe::<T>(ctx, client, &db, &table, Some(filter)).unwrap();
+            let oplog =
+                oplog::subscribe::<T>(ctx, client, &db, &table, Some(filter.get())).unwrap();
             oplog
         };
 
         block
     }
 
-    fn save<'r>(&'r self, t: T, q: Query<&str, Value<'r>>) -> Self::SaveFuture<'r> {
-        let (db, table, _, _) = self.condition(q);
-        let c = self.collection::<T>(db, table);
+    fn save<'r>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r> {
+        let Condition { db, table, .. } = q;
+        let c = self.collection::<T>(&db, &table);
         let block = async move {
             let mut t = t;
             if t.uid().len() == 0 || t.uid() == "" {
@@ -206,12 +199,15 @@ where
         block
     }
 
-    fn delete<'r>(&'r self, q: Query<&str, Value<'r>>) -> Self::RemoveFuture<'r> {
-        let (db, table, filter, _) = self.condition(q);
-        let c = self.collection::<T>(db, table);
+    fn delete<'r>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r> {
+        let Condition {
+            db, table, filter, ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
 
         let block = async move {
-            let _ = c.delete_many(filter, None).await?;
+            let _ = c.delete_many(filter.get(), None).await?;
             Ok(())
         };
 
