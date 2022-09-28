@@ -48,9 +48,9 @@ impl Base {
 
     pub async fn list(&self) -> Vec<Local> {
         let mut cond = Condition::new(MongoFilter(doc! {}));
-        if let Err(e) = cond.wheres("status=1") {
-            return vec![];
-        };
+        // if let Err(e) = cond.wheres("status=1") {
+        //     return vec![];
+        // };
         if let Ok(rs) = self.loc.list(cond).await {
             return rs;
         }

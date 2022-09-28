@@ -25,17 +25,3 @@ pub async fn get_mongo_store() -> &'static MongoStore {
     }
     unsafe { MONGO_STORE.get_unchecked() }
 }
-
-// use lazy_static::lazy_static init mongo
-// use lazy_static::lazy_static;
-
-// lazy_static! {
-//     pub static ref MONGO_STORE: MongoStore = {
-//         tokio::runtime::Runtime::new().unwrap().block_on(async {
-//             let uri = std::env::var("MONGO_URL").unwrap();
-//             let client = MongoStore::new(&uri).await.unwrap();
-
-//             client
-//         })
-//     };
-// }
