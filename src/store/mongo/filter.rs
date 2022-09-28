@@ -18,22 +18,22 @@ pub struct MongoFilter(pub Document);
 
 impl MongoFilter {
     fn gen_doc(k: &str, v: &condition::Value, op: MongoOp) -> anyhow::Result<Document> {
-        let mut doc = doc! {};
+        // let mut doc = doc! {};
 
-        let sub_doc = match v {
-            condition::Value::Text(v) => doc! {k:v.as_str().to_string()},
-            condition::Value::Number(v) => doc! {k:Bson::Int64(*v as i64)},
-            condition::Value::Bool(v) => doc! {k:Bson::Boolean(*v)},
-            _ => return Err(anyhow::anyhow!("unsupport type parse")),
+        let op = match op {
+            MongoOp::Eq => "$eq",
+            MongoOp::Gt => "$gt",
+            MongoOp::Gte => "$gt",
+            MongoOp::Lt => "$lt",
+            MongoOp::Lte => "$lte",
+            MongoOp::Ne => "$ne",
         };
 
-        match op {
-            MongoOp::Eq => return Ok(sub_doc),
-            MongoOp::Gt => doc.insert("$gt", sub_doc),
-            MongoOp::Gte => doc.insert("$gte", sub_doc),
-            MongoOp::Lt => doc.insert("$lt", sub_doc),
-            MongoOp::Lte => doc.insert("$lte", sub_doc),
-            MongoOp::Ne => doc.insert("$ne", sub_doc),
+        let doc = match v {
+            condition::Value::Text(v) => doc! {k:doc! {op:v.as_str().to_string()}},
+            condition::Value::Number(v) => doc! {k:doc!{op:Bson::Int64(*v as i64)}},
+            condition::Value::Bool(v) => doc! {k:doc!{op:Bson::Boolean(*v)}},
+            _ => return Err(anyhow::anyhow!("unsupport type parse")),
         };
 
         Ok(doc)
