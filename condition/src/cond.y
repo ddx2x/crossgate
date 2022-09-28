@@ -15,8 +15,8 @@ Exprs -> Expr:
   | Factor '&&' Factor { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }  
   | Exprs  '||' Factor { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
   | Exprs  '&&' Factor { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
-  | Factor  '||' Exprs { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
-  | Factor  '&&' Exprs { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
+  | Factor '||' Exprs { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
+  | Factor '&&' Exprs { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
   | Exprs  '||' Exprs  { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
   | Exprs  '&&' Exprs  { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
   | '(' Exprs ')' { $2 }
@@ -76,7 +76,7 @@ Text -> String:
 Bool -> bool:
   'BOOL' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<bool>().unwrap() }
   ;
-IntArray -> Vec<Value>:
+IntArray -> Value:
   'INT_ARRAY' 
   {
        let mut rs = vec![];
@@ -90,10 +90,10 @@ IntArray -> Vec<Value>:
       for item in items {
           rs.push(Value::Number(item.parse::<u64>().unwrap()));
       }
-      rs
+      Value::List(rs)
   }
   ;
-TextArray -> Vec<Value>:
+TextArray -> Value:
   'TEXT_ARRAY' 
   {
        let mut rs = vec![];
@@ -107,7 +107,7 @@ TextArray -> Vec<Value>:
       for item in items {
           rs.push(Value::Text(item.parse::<String>().unwrap()));
       }
-      rs
+      Value::List(rs)
   }
   ;
 

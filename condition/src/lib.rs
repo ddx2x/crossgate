@@ -70,12 +70,12 @@ pub enum Expr {
     In {
         span: Span,
         field: String,
-        value: Vec<Value>,
+        value: Value,
     },
     NotIn {
         span: Span,
         field: String,
-        value: Vec<Value>,
+        value: Value,
     },
     IsNull {
         span: Span,
@@ -214,5 +214,20 @@ mod tests {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
         }
+    }
+
+    #[test]
+    fn test_like_notlike() {
+        // like
+        match parse("full_id ! '^1.'") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+
+        // no like
+        match parse("full_id !! '^1.'") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
     }
 }
