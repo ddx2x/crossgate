@@ -139,7 +139,13 @@ mod tests {
     fn test_base() {
         let sym = "a=1&&b=2||b=2&&c=1||com_id=1||com-id=2&&com-name='abc'";
 
-        sym.starts_with("'");
+        match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+
+        let sym = "a.x.x=1";
+
         match parse(sym) {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
