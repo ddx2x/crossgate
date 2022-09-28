@@ -1,5 +1,5 @@
 %start Expr
-%token TEXT INT IDENT '>=' '<=' '>' '<' 
+%token TEXT INT IDENT '>=' '<=' '>' '<' '(' ')'
 %left '||'
 %right '&&'
 
@@ -15,12 +15,16 @@ Exprs -> Expr:
   | Factor '&&' Factor { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }  
   | Exprs  '||' Factor { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
   | Exprs  '&&' Factor { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
+  | Factor  '||' Exprs { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
+  | Factor  '&&' Exprs { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
   | Exprs  '||' Exprs  { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
   | Exprs  '&&' Exprs  { Expr::And { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
+  | '(' Exprs ')' { $2 }
   ;
 
 Factor -> Expr:
-    Ident '='  Text { Expr::Eq { span: $span, field: $1, value: Value::Text($3) } } 
+    '(' Factor ')'  { $2 }
+  | Ident '='  Text { Expr::Eq { span: $span, field: $1, value: Value::Text($3) } } 
   | Ident '>'  Text { Expr::Gt { span: $span, field: $1, value: Value::Text($3) } }
   | Ident '<'  Text { Expr::Lt { span: $span, field: $1, value: Value::Text($3) } }
   | Ident '>=' Text { Expr::Gte { span: $span, field: $1, value: Value::Text($3) } }

@@ -151,4 +151,25 @@ mod tests {
             Err(e) => panic!("{}", e),
         }
     }
+
+    #[test]
+    fn test_base2() {
+        let sym = "a=1 && ( b=1 ) && c=1";
+
+        match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+       #[test]
+    fn test_base3() {
+        let sym = "a=2 && ( b=1 || b=2 ) && b=2";
+
+        match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
 }
+

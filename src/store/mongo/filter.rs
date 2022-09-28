@@ -1,4 +1,4 @@
-use crate::store::{Condition, Filter};
+use crate::store::Filter;
 use bson::{doc, Document};
 use condition::parse;
 use mongodb::bson::Bson;
@@ -125,7 +125,27 @@ mod test {
     use super::*;
     #[test]
     fn test_parse_cond() {
-        let sym = "a=1&&b=2||c=1&&b=2";
+        let sym = "a=1 && b=2 || c=1 && b=2";
+        let mut mf = MongoFilter(doc! {});
+        match mf.parse(sym) {
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
+    fn test_parse_cond2() {
+        let sym = "a=1 && (b=2||c=1) && b=2";
+        let mut mf = MongoFilter(doc! {});
+        match mf.parse(sym) {
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
+    fn test_parse_cond3() {
+        let sym = "a=1 && (b=2 || c=1 && b=2)";
         let mut mf = MongoFilter(doc! {});
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
