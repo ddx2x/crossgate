@@ -1,4 +1,4 @@
-use crate::store::Filter;
+use crate::store::{Condition, Filter};
 use bson::{doc, Document};
 use condition::parse;
 
@@ -12,7 +12,6 @@ pub enum MongoOp {
     Lte,
     Ne,
 }
-
 #[derive(Clone, Debug)]
 pub struct MongoFilter(pub Document);
 

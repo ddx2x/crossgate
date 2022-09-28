@@ -1,6 +1,6 @@
 use super::Filter;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Condition<T: Filter> {
     pub(crate) db: String,
     pub(crate) table: String,
@@ -59,16 +59,16 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     #[test]
-//     fn test_parse_cond() {
-//         let sym = "a=1&&b=2||c=1&&b=2";
-//         let mut cond = Condition::new();
-//         match cond.parse(sym) {
-//             Ok(c) => println!("{:?}", c),
-//             Err(e) => panic!("{}", e),
-//         }
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use crate::store::new_mongo_condition;
+
+    #[test]
+    fn test_parse_cond() {
+        let mut cond = new_mongo_condition();
+        match cond.wheres("a=1&&b=2||c=1&&b=2") {
+            Ok(_) => println!("{:?}", cond),
+            Err(e) => panic!("{}", e),
+        }
+    }
+}

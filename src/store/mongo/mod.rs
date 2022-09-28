@@ -7,7 +7,7 @@ use super::{StoreError, Stroage};
 use crate::object::Object;
 
 use bson::oid::ObjectId;
-use bson::Document;
+use bson::{doc, Document};
 
 use futures::{Future, TryStreamExt};
 use mongodb::options::FindOptions;
@@ -19,6 +19,10 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use tokio::sync::mpsc::Receiver;
+
+pub fn new_mongo_condition() -> Condition<MongoFilter> {
+    Condition::new(MongoFilter(doc! {}))
+}
 
 pub trait GetFilter {
     fn get(self) -> Document;
