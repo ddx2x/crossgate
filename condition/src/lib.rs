@@ -70,12 +70,12 @@ pub enum Expr {
     In {
         span: Span,
         field: String,
-        value: Value,
+        value: Vec<Value>,
     },
     NotIn {
         span: Span,
         field: String,
-        value: Value,
+        value: Vec<Value>,
     },
     IsNull {
         span: Span,
@@ -162,7 +162,7 @@ mod tests {
         }
     }
 
-       #[test]
+    #[test]
     fn test_base3() {
         let sym = "a=2 && ( b=1 || b=2 ) && b=2";
 
@@ -171,5 +171,48 @@ mod tests {
             Err(e) => panic!("{}", e),
         }
     }
-}
 
+    #[test]
+    fn test_like() {
+        let sym = "a ! '^abc' ";
+        match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+
+        let sym = "a !! '^abc' ";
+        match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
+    fn test_in_array() {
+        // in
+        match parse("id ~ (1)") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+
+        match parse("id ~ (1,2,3,4)") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+
+        match parse("id ~ ('1')") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+
+        match parse("id ~ ('1','2','3','4')") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+
+        match parse("id ~~ ('1','2','3','4')") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+}
