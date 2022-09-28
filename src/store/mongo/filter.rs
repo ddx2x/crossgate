@@ -1,6 +1,7 @@
 use crate::store::{Condition, Filter};
 use bson::{doc, Document};
 use condition::parse;
+use mongodb::bson::Bson;
 
 use super::GetFilter;
 
@@ -18,20 +19,21 @@ pub struct MongoFilter(pub Document);
 impl MongoFilter {
     fn gen_doc(k: &str, v: &condition::Value, op: MongoOp) -> anyhow::Result<Document> {
         let mut doc = doc! {};
-        let v = match v {
-            condition::Value::Text(v) => v.as_str().to_string(),
-            condition::Value::Number(v) => format!("{}", v),
-            condition::Value::Bool(v) => format!("{}", v),
+
+        let sub_doc = match v {
+            condition::Value::Text(v) => doc! {k:v.as_str().to_string()},
+            condition::Value::Number(v) => doc! {k:Bson::Int64(*v as i64)},
+            condition::Value::Bool(v) => doc! {k:Bson::Boolean(*v)},
             _ => return Err(anyhow::anyhow!("unsupport type parse")),
         };
 
         match op {
-            MongoOp::Eq => doc.insert(k, v),
-            MongoOp::Gt => doc.insert("$gt", doc! {k:v}),
-            MongoOp::Gte => doc.insert("$gte", doc! {k:v}),
-            MongoOp::Lt => doc.insert("$lt", doc! {k:v}),
-            MongoOp::Lte => doc.insert("$lte", doc! {k:v}),
-            MongoOp::Ne => doc.insert("$ne", doc! {k:v}),
+            MongoOp::Eq => return Ok(sub_doc),
+            MongoOp::Gt => doc.insert("$gt", sub_doc),
+            MongoOp::Gte => doc.insert("$gte", sub_doc),
+            MongoOp::Lt => doc.insert("$lt", sub_doc),
+            MongoOp::Lte => doc.insert("$lte", sub_doc),
+            MongoOp::Ne => doc.insert("$ne", sub_doc),
         };
 
         Ok(doc)

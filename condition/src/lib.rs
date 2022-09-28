@@ -107,7 +107,11 @@ pub fn parse<'a>(s: &'a str) -> anyhow::Result<Expr> {
 
     let mut errors = vec![];
     for e in errs {
-        errors.push(format!("{}\r\n", e.pp(&lexer, &cond_y::token_epp)));
+        errors.push(format!(
+            "{}, text: \"{}\"",
+            e.pp(&lexer, &cond_y::token_epp),
+            s
+        ));
     }
 
     if errors.len() > 0 {
@@ -120,13 +124,22 @@ pub fn parse<'a>(s: &'a str) -> anyhow::Result<Expr> {
     }
 }
 
+pub(crate) fn remove_apostrophe(s: String) -> String {
+    s.trim_end_matches("'")
+        .to_string()
+        .trim_start_matches("'")
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::parse;
 
     #[test]
     fn test_base() {
-        let sym = "a=1&&b=2||b=2&&c=1";
+        let sym = "a=1&&b=2||b=2&&c=1||com_id=1||com-id=2&&com-name='abc'";
+
+        sym.starts_with("'");
         match parse(sym) {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),

@@ -66,7 +66,7 @@ mod test {
     #[test]
     fn test_parse_cond() {
         let mut cond = new_mongo_condition();
-        match cond.wheres("a=1&&b=2||c=1&&b=2") {
+        match cond.wheres("a=1&&b=2||c=1&&b=2&&abc='abc21'") {
             Ok(_) => println!("{:?}", cond),
             Err(e) => panic!("{}", e),
         }

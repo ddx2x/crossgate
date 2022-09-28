@@ -1,5 +1,5 @@
 %start Expr
-%token TEXT INT '>=' '<=' '>' '<' 
+%token TEXT INT IDENT '>=' '<=' '>' '<' 
 %left '||'
 %right '&&'
 
@@ -20,22 +20,34 @@ Exprs -> Expr:
   ;
 
 Factor -> Expr:
-    Ident '=' Str { Expr::Eq { span: $span, field: $1, value: Value::Text($3) } }
-  | Ident '=' Number { Expr::Eq { span: $span, field: $1, value: Value::Number($3) } }
-  | Ident '>' Number { Expr::Gt { span: $span, field: $1, value: Value::Number($3) } }
-  | Ident '<' Number { Expr::Lt { span: $span, field: $1, value: Value::Number($3) } }
+    Ident '='  Text { Expr::Eq { span: $span, field: $1, value: Value::Text($3) } } 
+  | Ident '>'  Text { Expr::Gt { span: $span, field: $1, value: Value::Text($3) } }
+  | Ident '<'  Text { Expr::Lt { span: $span, field: $1, value: Value::Text($3) } }
+  | Ident '>=' Text { Expr::Gte { span: $span, field: $1, value: Value::Text($3) } }
+  | Ident '<=' Text { Expr::Lte { span: $span, field: $1, value: Value::Text($3) } }
+
+  | Ident '='  Number { Expr::Eq { span: $span, field: $1, value: Value::Number($3) } }
+  | Ident '>'  Number { Expr::Gt { span: $span, field: $1, value: Value::Number($3) } }
+  | Ident '<'  Number { Expr::Lt { span: $span, field: $1, value: Value::Number($3) } }
   | Ident '>=' Number { Expr::Gte { span: $span, field: $1, value: Value::Number($3) } }
   | Ident '<=' Number { Expr::Lte { span: $span, field: $1, value: Value::Number($3) } }
+
+  | Ident '='  Ident  { Expr::Eq { span: $span, field: $1, value: Value::Field($3) } }
+  | Ident '>'  Ident { Expr::Gt { span: $span, field: $1, value: Value::Field($3) } }
+  | Ident '<'  Ident { Expr::Lt { span: $span, field: $1, value: Value::Field($3) } }
+  | Ident '>=' Ident { Expr::Gte { span: $span, field: $1, value: Value::Field($3) } }
+  | Ident '<=' Ident { Expr::Lte { span: $span, field: $1, value: Value::Field($3) } }
+  
   ;
 
 Ident -> String:
-   Str { $1 }
+  'IDENT' { String::from($lexer.span_str($1.as_ref().unwrap().span())) } 
   ;
 Number -> u64:
   'INT' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<u64>().unwrap() }
   ;
-Str -> String:
-  'TEXT' { String::from($lexer.span_str($1.as_ref().unwrap().span())) } 
+Text -> String:
+  'TEXT' { remove_apostrophe(String::from($lexer.span_str($1.as_ref().unwrap().span()))) } 
   ;
 
 %%
