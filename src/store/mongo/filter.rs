@@ -35,7 +35,7 @@ impl MongoFilter {
 
             MongoOp::NotLike => {
                 //{ item: { $not: { $regex: "^p.*" } } }
-                panic!("notlike not supported")
+                return Err(anyhow::anyhow!("notlike not supported"));
             }
         };
 
