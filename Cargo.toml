@@ -72,6 +72,9 @@ path = "examples/stream/main.rs"
 name = "cond"
 path = "examples/cond/main.rs"
 
+[[bin]]
+name = "object"
+path = "examples/obejct/main.rs"
 
 [profile.release]
 opt-level = 'z'

@@ -59,7 +59,7 @@ impl Base {
 
     pub async fn get(&self, name: &str) -> Local {
         let mut cond = Condition::new(MongoFilter(doc! {}));
-        cond.wheres(&format!("status=1 && name={}", name)).unwrap();
+        cond.wheres(&format!("name='{}'", name)).unwrap();
         self.loc.get(cond).await.unwrap()
     }
 
