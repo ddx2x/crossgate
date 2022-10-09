@@ -3,7 +3,7 @@ pub mod local;
 use std::net::SocketAddr;
 
 use bson::doc;
-use crossgate::store::{Condition, MongoFilter, Stores};
+use crossgate::store::{Condition, Event, MongoFilter, Stores};
 pub use local::Local;
 
 use crossgate::service::{self, Service};
@@ -63,9 +63,11 @@ impl Base {
         self.loc.get(cond).await.unwrap()
     }
 
-    pub async fn watch(&self, ctx: Context) -> Receiver<oplog::Event<gps::Gps>> {
+    pub async fn watch(&self, ctx: Context) -> Receiver<Event<Local>> {
         let mut cond = Condition::new(MongoFilter(doc! {}));
-        cond.wheres("o.version>=0").unwrap();
-        self.gps.watch(ctx, cond).await
+        cond.wheres("version>=1").unwrap();
+
+        log::info!("{:?}", cond);
+        self.loc.watch(ctx, cond).await
     }
 }

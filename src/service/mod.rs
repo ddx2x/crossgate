@@ -1,7 +1,7 @@
 mod error;
 
 use crate::object::Object;
-use crate::store::{Condition, Context, Filter, Stores, Stroage};
+use crate::store::{Condition, Context, Event, Filter, Stores, Stroage};
 
 use tokio::sync::mpsc::Receiver;
 
@@ -50,48 +50,10 @@ where
         Ok(self.store.remove(self.intercept(q)).await?)
     }
 
-    pub async fn watch(&self, ctx: Context, q: Condition<F>) -> Receiver<oplog::Event<T>> {
+    pub async fn watch(&self, ctx: Context, q: Condition<F>) -> Receiver<Event<T>> {
         self.store
             .watch(ctx, self.schema.to_string(), self.table.to_string(), q)
             .await
+            .unwrap()
     }
 }
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::{
-//         object::{decorate, Object},
-//         query,
-//         store::MongoStore,
-//     };
-
-//     #[decorate]
-//     struct Local {}
-
-//     #[tokio::test]
-//     async fn test_service() {
-//         let m = MongoStore::new("mongodb://10.200.100.200:27017")
-//             .await
-//             .unwrap();
-//         let s = Service::<Local, MongoStore>::new(
-//             "base".to_string(),
-//             "local".to_string(),
-//             Stores::new(m),
-//         );
-
-//         let q = query!();
-//         if let Ok(v) = s.list(q.clone()).await {
-//             println!("{:?}", v);
-//         } else {
-//             panic!("test error")
-//         }
-
-//         // if let Ok(v) = s.get(q.clone()).await {
-//         //     println!("{:?}", v);
-//         //     return;
-//         // } else {
-//         //     panic!("test error")
-//         // }
-//     }
-// }

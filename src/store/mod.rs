@@ -13,6 +13,40 @@ use crate::object::Object;
 
 pub type Context = tokio_context::context::Context;
 
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub enum Event<T> {
+    Added(T),
+    Updated(T),
+    Deleted(T),
+    Error(String),
+}
+
+impl<T> std::fmt::Display for Event<T>
+where
+    T: std::fmt::Debug + serde::Serialize,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Event::Added(ref t) => write!(
+                f,
+                r#"{{ \"type\": \"ADDED\", \"object\": {:?} }}"#,
+                serde_json::to_string(&t).unwrap()
+            ),
+            Event::Updated(t) => write!(
+                f,
+                r#"{{ \"type\": \"MODIFIED\", \"object\": {:?} }}"#,
+                serde_json::to_string(&t).unwrap()
+            ),
+            Event::Deleted(t) => write!(
+                f,
+                r#"{{ \"type\": \"DELETED\", \"object\": {:?} }}"#,
+                serde_json::to_string(&t).unwrap()
+            ),
+            Event::Error(ref s) => write!(f, r#"{{ \"type\": \"ERROR\", \"msg\": {:?} }}"#, s),
+        }
+    }
+}
+
 pub trait Filter: Clone + Debug {
     fn parse(&mut self, input: &str) -> anyhow::Result<Box<Self>>;
 }
@@ -34,7 +68,7 @@ pub trait Stroage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     where
         Self: 'a;
 
-    type StreamFuture<'a>: Future<Output = Receiver<oplog::Event<T>>>
+    type StreamFuture<'a>: Future<Output = crate::Result<Receiver<Event<T>>>>
     where
         Self: 'a;
 
@@ -102,20 +136,7 @@ where
         db: String,
         table: String,
         q: Condition<F>,
-    ) -> impl Future<Output = Receiver<oplog::Event<T>>> + 'r {
+    ) -> impl Future<Output = crate::Result<Receiver<Event<T>>>> + 'r {
         async move { self.store.watch(ctx, db, table, q).await }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    // use super::{cond::Condition, Query, Value, DB, TABLE};
-    #[test]
-    fn test_condition() {
-        // let query: Query<&str, Value> =
-        //     query!(DB => Value::String("pub"),TABLE => Value::String("user"));
-        // let condition = Condition::parse(query);
-        // assert_eq!(condition.db, "pub");
-        // assert_eq!(condition.table, "user");
     }
 }

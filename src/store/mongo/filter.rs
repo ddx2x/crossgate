@@ -25,7 +25,7 @@ impl MongoFilter {
         let op = match op {
             MongoOp::Eq => "$eq",
             MongoOp::Gt => "$gt",
-            MongoOp::Gte => "$gt",
+            MongoOp::Gte => "$gte",
             MongoOp::Lt => "$lt",
             MongoOp::Lte => "$lte",
             MongoOp::Ne => "$ne",

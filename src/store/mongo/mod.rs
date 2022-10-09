@@ -1,8 +1,9 @@
 mod filter;
 pub use filter::MongoFilter;
+use mongodb::change_stream::event::ChangeStreamEvent;
 
 use super::condition::Condition;
-use super::{Context, Filter};
+use super::{Context, Event, Filter};
 use super::{StoreError, Stroage};
 use crate::object::Object;
 
@@ -10,10 +11,10 @@ use bson::oid::ObjectId;
 use bson::{doc, Document};
 
 use futures::{Future, TryStreamExt};
-use mongodb::options::FindOptions;
+use mongodb::options::{ChangeStreamOptions, FindOptions, FullDocumentType};
 use std::fmt::Debug;
 
-use mongodb::Client;
+use mongodb::{change_stream, Client};
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -77,7 +78,7 @@ where
     where
         Self: 'a;
 
-    type StreamFuture<'a> = impl Future<Output = Receiver<oplog::Event<T>>>
+    type StreamFuture<'a> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
     where
         Self: 'a;
 
@@ -178,10 +179,91 @@ where
     ) -> Self::StreamFuture<'r> {
         let client = self.client.clone();
         let Condition { filter, .. } = q;
+
         let block = async move {
-            let oplog =
-                oplog::subscribe::<T>(ctx, client, &db, &table, Some(filter.get())).unwrap();
-            oplog
+            let (tx, rx) = tokio::sync::mpsc::channel(4);
+
+            let collection = client.database(&db).collection::<T>(&table);
+            let mut cursor = collection.find(filter.get(), None).await?;
+
+            let options = ChangeStreamOptions::builder()
+                .full_document(Some(FullDocumentType::UpdateLookup))
+                .build();
+
+            let mut stream = collection.watch(None, options).await?;
+
+            tokio::spawn(async move {
+                let loop_block = async {
+                    while let Ok(Some(item)) = cursor.try_next().await {
+                        if let Err(e) = tx.send(Event::Added(item)).await {
+                            log::error!("watch find send: {}", e.to_string());
+                            break;
+                        }
+                    }
+
+                    while let Ok(Some(evt)) = stream.try_next().await {
+                        let ChangeStreamEvent::<T> {
+                            operation_type,
+                            full_document,
+                            document_key,
+                            ..
+                        } = evt;
+
+                        match operation_type {
+                            change_stream::event::OperationType::Insert => {
+                                if full_document.is_none() {
+                                    break;
+                                }
+                                if let Err(e) = tx.send(Event::Added(full_document.unwrap())).await
+                                {
+                                    log::error!("{:?}", e.to_string());
+                                    break;
+                                }
+                            }
+                            change_stream::event::OperationType::Update
+                            | change_stream::event::OperationType::Replace => {
+                                if full_document.is_none() {
+                                    break;
+                                }
+                                if let Err(e) =
+                                    tx.send(Event::Updated(full_document.unwrap())).await
+                                {
+                                    log::error!("{:?}", e.to_string());
+                                    break;
+                                }
+                            }
+                            change_stream::event::OperationType::Delete => {
+                                if document_key.is_none() {
+                                    break;
+                                }
+                                match mongodb::bson::from_document::<T>(document_key.unwrap()) {
+                                    Ok(doc) => {
+                                        if let Err(e) = tx.send(Event::Deleted(doc)).await {
+                                            log::error!("{:?}", e.to_string());
+                                            break;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        log::error!("{:?}", e.to_string());
+                                        break;
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                };
+
+                let mut ctx = ctx;
+                tokio::select! {
+                    _ = loop_block =>{},
+                    _ = ctx.done() => {
+                        return;
+                    },
+                }
+            });
+
+            Ok(rx)
         };
 
         block

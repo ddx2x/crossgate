@@ -11,6 +11,8 @@ use tokio_context::context::Context;
 use futures::{future::BoxFuture, stream::Stream};
 use std::{convert::Infallible, net::SocketAddr, time::Duration};
 
+use crossgate::store::Event as OpEvent;
+
 use crate::{
     base::{Base, Local},
     db_wrapper::get_mongo_store,
@@ -34,7 +36,7 @@ async fn watch(
         let (ctx, h) = Context::new();
         let mut r = base.watch(ctx).await;
         while let Some(item) = r.recv().await {
-            if let oplog::Event::Error(e) = item {
+            if let OpEvent::Error(e) = item {
                 log::error!("error {:?}",e);
                 break;
             }
