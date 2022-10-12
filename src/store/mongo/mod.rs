@@ -256,10 +256,8 @@ where
 
                 let mut ctx = ctx;
                 tokio::select! {
-                    _ = loop_block =>{},
-                    _ = ctx.done() => {
-                        return;
-                    },
+                    _ = loop_block => {},
+                    _ = ctx.done() => return,
                 }
             });
 

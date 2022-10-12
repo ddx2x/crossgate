@@ -21,9 +21,9 @@ where
 {
     pub fn new(schema: String, table: String, store: Stores<T, F, S>) -> Self {
         Self {
-            store: store,
-            schema: schema,
-            table: table,
+            store,
+            schema,
+            table,
             _f: None,
         }
     }
@@ -50,10 +50,9 @@ where
         Ok(self.store.remove(self.intercept(q)).await?)
     }
 
-    pub async fn watch(&self, ctx: Context, q: Condition<F>) -> Receiver<Event<T>> {
+    pub async fn watch(&self, ctx: Context, q: Condition<F>) -> crate::Result<Receiver<Event<T>>> {
         self.store
             .watch(ctx, self.schema.to_string(), self.table.to_string(), q)
             .await
-            .unwrap()
     }
 }
