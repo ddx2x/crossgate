@@ -45,6 +45,15 @@ where
         self
     }
 
+    pub fn with_fields(&mut self, fields: &[&str]) -> &mut Condition<T> {
+        let fields = fields
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        self.fields = fields;
+        self
+    }
+
     pub fn with_page(&mut self, page: usize, page_size: usize) -> &mut Condition<T> {
         self.page = page;
         self.page_size = page_size;
