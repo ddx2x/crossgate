@@ -1,30 +1,30 @@
 mod error;
 
 use crate::object::Object;
-use crate::store::{Condition, Context, Event, Filter, Stores, Stroage};
+use crate::store::{Condition, Context, Event, Filter, Storage};
 
 use tokio::sync::mpsc::Receiver;
 
 #[derive(Debug, Clone)]
-pub struct Service<T: Object, F: Filter, S: Stroage<T, F>> {
+pub struct Service<T: Object, F: Filter, S: Storage<T, F>> {
     schema: String,
     table: String,
-    store: Stores<T, F, S>,
-    _f: Option<F>,
+    storage: S,
+    _ref: Option<(T, F)>,
 }
 
 impl<T, F, S> Service<T, F, S>
 where
     T: Object,
     F: Filter,
-    S: Stroage<T, F>,
+    S: Storage<T, F>,
 {
-    pub fn new(schema: String, table: String, store: Stores<T, F, S>) -> Self {
+    pub fn new(schema: String, table: String, storage: S) -> Self {
         Self {
-            store,
+            storage,
             schema,
             table,
-            _f: None,
+            _ref: None,
         }
     }
 
@@ -35,23 +35,23 @@ where
     }
 
     pub async fn list(&self, q: Condition<F>) -> crate::Result<Vec<T>> {
-        Ok(self.store.list(self.intercept(q)).await?)
+        Ok(self.storage.list(self.intercept(q)).await?)
     }
 
     pub async fn get(&self, q: Condition<F>) -> crate::Result<T> {
-        Ok(self.store.get(self.intercept(q)).await?)
+        Ok(self.storage.get(self.intercept(q)).await?)
     }
 
     pub async fn save(&self, t: T, q: Condition<F>) -> crate::Result<()> {
-        Ok(self.store.save(t, self.intercept(q)).await?)
+        Ok(self.storage.save(t, self.intercept(q)).await?)
     }
 
     pub async fn remove(&self, q: Condition<F>) -> crate::Result<()> {
-        Ok(self.store.remove(self.intercept(q)).await?)
+        Ok(self.storage.delete(self.intercept(q)).await?)
     }
 
     pub async fn watch(&self, ctx: Context, q: Condition<F>) -> crate::Result<Receiver<Event<T>>> {
-        self.store
+        self.storage
             .watch(ctx, self.schema.to_string(), self.table.to_string(), q)
             .await
     }

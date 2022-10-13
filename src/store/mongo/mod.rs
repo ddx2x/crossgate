@@ -4,7 +4,7 @@ use mongodb::change_stream::event::ChangeStreamEvent;
 
 use super::condition::Condition;
 use super::{Context, Event, Filter};
-use super::{StoreError, Stroage};
+use super::{StoreError, Storage};
 use crate::object::Object;
 
 use bson::oid::ObjectId;
@@ -57,7 +57,7 @@ impl MongoStore {
     }
 }
 
-impl<T, F> Stroage<T, F> for MongoStore
+impl<T, F> Storage<T, F> for MongoStore
 where
     T: Object + DeserializeOwned + Serialize + Unpin + Debug,
     F: Filter + GetFilter,

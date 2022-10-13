@@ -51,7 +51,7 @@ pub trait Filter: Clone + Debug {
     fn parse(&mut self, input: &str) -> anyhow::Result<Box<Self>>;
 }
 
-pub trait Stroage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
+pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     type ListFuture<'a>: Future<Output = crate::Result<Vec<T>>>
     where
         Self: 'a;
@@ -87,56 +87,4 @@ pub trait Stroage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
         table: String,
         q: Condition<F>,
     ) -> Self::StreamFuture<'r>;
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Stores<T: Object, F: Filter, S: Stroage<T, F>> {
-    _t: Option<T>,
-    _f: Option<F>,
-    store: S,
-}
-
-impl<T, F, S> Stores<T, F, S>
-where
-    T: Object,
-    F: Filter,
-    S: Stroage<T, F>,
-{
-    pub fn new(s: S) -> Self {
-        Stores {
-            _t: None,
-            _f: None,
-            store: s,
-        }
-    }
-
-    pub fn get<'r>(&'r self, q: Condition<F>) -> impl Future<Output = crate::Result<T>> + 'r {
-        async move { self.store.get(q).await }
-    }
-
-    pub fn save<'r>(
-        &'r self,
-        t: T,
-        q: Condition<F>,
-    ) -> impl Future<Output = crate::Result<()>> + 'r {
-        async move { self.store.save(t, q).await }
-    }
-
-    pub fn remove<'r>(&'r self, q: Condition<F>) -> impl Future<Output = crate::Result<()>> + 'r {
-        async move { self.store.delete(q).await }
-    }
-
-    pub fn list<'r>(&'r self, q: Condition<F>) -> impl Future<Output = crate::Result<Vec<T>>> + 'r {
-        async move { self.store.list(q).await }
-    }
-
-    pub fn watch<'r>(
-        &'r self,
-        ctx: Context,
-        db: String,
-        table: String,
-        q: Condition<F>,
-    ) -> impl Future<Output = crate::Result<Receiver<Event<T>>>> + 'r {
-        async move { self.store.watch(ctx, db, table, q).await }
-    }
 }
