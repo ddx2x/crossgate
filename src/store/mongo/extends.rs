@@ -19,6 +19,21 @@ where
         Self: 'a,
         T: MongoDbModel;
 
+    type GetFuture<'a, T> = impl Future<Output = crate::Result<T>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    type SaveFuture<'a,T> =  impl Future<Output = crate::Result<()>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    type RemoveFuture<'a,T> = impl Future<Output = crate::Result<()>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
     fn list_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
         T: MongoDbModel,
@@ -93,6 +108,67 @@ where
             Ok(items)
         };
 
+        block
+    }
+
+    fn save_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let Condition { db, table, .. } = q;
+        let c = self.collection::<T>(&db, &table);
+        let block = async move {
+            let _ = c.insert_one(t, None).await?;
+            Ok(())
+        };
+
+        block
+    }
+
+    fn delete_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let Condition {
+            db, table, filter, ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
+
+        let block = async move {
+            let _ = c.delete_many(filter.get(), None).await?;
+            Ok(())
+        };
+
+        block
+    }
+
+    fn get_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::GetFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let block = async move {
+            let Condition {
+                db, table, filter, ..
+            } = q;
+            let c = self.collection::<T>(&db, &table);
+
+            match c.find_one(filter.get(), None).await {
+                Ok(value) => {
+                    if let Some(value) = value {
+                        return Ok(value);
+                    } else {
+                        return Err(StoreError::DataNotFound.into());
+                    }
+                }
+                Err(e) => {
+                    return Err(anyhow::format_err!(
+                        "mongodb get error: {:?}",
+                        StoreError::Other(Box::new(e))
+                    ))
+                }
+            }
+        };
         block
     }
 }
