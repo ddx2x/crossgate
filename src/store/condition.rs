@@ -7,6 +7,7 @@ pub struct Condition<T: Filter> {
     pub(crate) page: usize,
     pub(crate) page_size: usize,
     pub(crate) sorts: Vec<String>,
+    pub(crate) fields: Vec<String>,
     pub(crate) filter: T,
 }
 
@@ -21,6 +22,7 @@ where
             page: 1,
             page_size: 10,
             sorts: Default::default(),
+            fields: Default::default(),
             filter: t,
         }
     }

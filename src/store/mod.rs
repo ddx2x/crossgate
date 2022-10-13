@@ -1,5 +1,7 @@
 mod mongo;
 pub use mongo::*;
+mod mongo_extends;
+pub use mongo_extends::{MongoDbModel, MongoStorageExtends};
 mod condition;
 pub use self::condition::Condition;
 mod error;

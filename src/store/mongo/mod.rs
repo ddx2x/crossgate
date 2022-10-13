@@ -1,10 +1,11 @@
 mod filter;
 pub use filter::MongoFilter;
 use mongodb::change_stream::event::ChangeStreamEvent;
+mod extends;
 
 use super::condition::Condition;
 use super::{Context, Event, Filter};
-use super::{StoreError, Storage};
+use super::{Storage, StoreError};
 use crate::object::Object;
 
 use bson::oid::ObjectId;
@@ -91,6 +92,7 @@ where
                 page,
                 page_size,
                 sorts,
+                ..
             } = q;
 
             let c = self.collection::<T>(&db, &table);
