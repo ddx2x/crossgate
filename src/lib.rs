@@ -3,6 +3,7 @@
 // tools lib
 pub mod object;
 pub mod service;
+pub mod utils;
 
 #[macro_use]
 pub mod store;

@@ -1,21 +1,23 @@
 mod filter;
 pub use filter::MongoFilter;
+use futures::stream::SelectNextSome;
 use mongodb::change_stream::event::ChangeStreamEvent;
+use serde_json::Value;
 mod extends;
-
 use super::condition::Condition;
 use super::{Context, Event, Filter};
 use super::{Storage, StoreError};
 use crate::object::Object;
+
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use bson::oid::ObjectId;
 use bson::{doc, Document};
 
 use futures::{Future, TryStreamExt};
 use mongodb::options::{ChangeStreamOptions, FindOptions, FullDocumentType};
-use std::fmt::Debug;
-
 use mongodb::{change_stream, Client};
+use std::fmt::Debug;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -74,6 +76,10 @@ where
     type SaveFuture<'a> = impl Future<Output =  crate::Result<()>>
     where
         Self: 'a;
+
+    type UpdateFuture<'a> = impl Future<Output =  crate::Result<T>>
+        where
+            Self: 'a;
 
     type RemoveFuture<'a>= impl Future<Output =  crate::Result<()>>
     where
@@ -284,6 +290,67 @@ where
         block
     }
 
+    fn update<'r>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
+        let Condition {
+            db,
+            table,
+            filter,
+            fields,
+            ..
+        } = q;
+        let c = self.collection::<T>(&db, &table);
+        let mut t = t;
+        let block = async move {
+            let value = match c.find_one(filter.clone().get(), None).await {
+                Ok(value) => value,
+
+                Err(e) => {
+                    return Err(anyhow::format_err!(
+                        "mongodb get error: {:?}",
+                        StoreError::Other(Box::new(e))
+                    ))
+                }
+            };
+
+            if value.is_none() {
+                if t.uid().len() == 0 || t.uid() == "" {
+                    t.generate(|| -> String { ObjectId::new().to_string() });
+                }
+                let _ = c.insert_one(&t, None).await?;
+                return Ok(t);
+            }
+
+            let mut update = false;
+
+            let mut new_data_binding = serde_json::to_value(&t)?;
+            let new_data = new_data_binding.as_object_mut().unwrap();
+
+            let mut old_data_binding = serde_json::to_value(&Some(value))?;
+            let old_data = old_data_binding.as_object_mut().unwrap();
+
+            for key in fields.iter() {
+                if !old_data[key].eq(&new_data[key]) {
+                    update = true;
+                    old_data[key] = new_data[key].clone();
+                }
+            }
+            old_data["version"] = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                .into();
+
+            if !update {
+                return Ok(t);
+            }
+            t = serde_json::from_value::<T>(serde_json::to_value(old_data).unwrap()).unwrap();
+            let _ = c.replace_one(filter.get(), &t, None);
+            Ok(t)
+        };
+
+        block
+    }
+
     fn delete<'r>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r> {
         let Condition {
             db, table, filter, ..
@@ -312,3 +379,18 @@ mod tests {
         }
     }
 }
+
+// fn set(src: Value, tag: Value, path: &str) -> bool {
+//     // if !src.eq(&tag) {
+
+//     // }
+//     false
+// }
+
+// fn get<T>(value: Value, path: &str) -> anyhow::Result<T> {
+//     // if !src.eq(&tag) {
+
+//     // }
+
+//     Ok(())
+// }

@@ -66,6 +66,10 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     where
         Self: 'a;
 
+    type UpdateFuture<'a>: Future<Output = crate::Result<T>>
+    where
+        Self: 'a;
+
     type RemoveFuture<'a>: Future<Output = crate::Result<()>>
     where
         Self: 'a;
@@ -75,6 +79,8 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
         Self: 'a;
 
     fn save<'r>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r>;
+
+    fn update<'r>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r>;
 
     fn delete<'r>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r>;
 
