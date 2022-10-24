@@ -8,6 +8,8 @@ use super::condition::Condition;
 use super::{Context, Event, Filter};
 use super::{Storage, StoreError};
 use crate::object::Object;
+use crate::utils::dict::get;
+use crate::utils::dict::set;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -331,7 +333,13 @@ where
             for key in fields.iter() {
                 if !old_data[key].eq(&new_data[key]) {
                     update = true;
-                    old_data[key] = new_data[key].clone();
+
+                    match get(new_data, key) {
+                        None => {}
+                        Some(value) => {
+                            set(old_data, key, &value);
+                        }
+                    }
                 }
             }
             old_data["version"] = SystemTime::now()

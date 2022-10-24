@@ -28,12 +28,22 @@ pub fn get(data: &mut Map<String, Value>, path: &String) -> Option<Value> {
     Some(value)
 }
 
-pub fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<()> {
+pub fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<Value> {
     let (head, remain) = shift(path);
 
-    let value = data.get(&head)?;
+    if remain == "" {
+        data.remove(&path.clone());
+        data.insert(path.to_string(), value.clone());
+        return Some(serde_json::Value::Object(data.clone()));
+    }
 
+    let path_value = data.get(&head)?;
+    let mut binding = path_value.clone();
+    let path_value = binding.as_object_mut()?;
 
+    let res = set(path_value, &remain, value)?;
+    data.remove(&head);
+    data.insert(head, res);
 
-    return Some(());
+    return Some(serde_json::Value::Object(data.clone()));
 }
