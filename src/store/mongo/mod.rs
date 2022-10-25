@@ -330,15 +330,12 @@ where
             let mut old_data_binding = serde_json::to_value(&Some(value))?;
             let old_data = old_data_binding.as_object_mut().unwrap();
 
-            for key in fields.iter() {
-                if !old_data[key].eq(&new_data[key]) {
+            for field in fields.iter() {
+                if !old_data[field].eq(&new_data[field]) {
                     update = true;
 
-                    match get(new_data, key) {
-                        None => {}
-                        Some(value) => {
-                            set(old_data, key, &value);
-                        }
+                    if let Some(value) = get(new_data, field) {
+                        set(old_data, field, &value);
                     }
                 }
             }
@@ -351,8 +348,8 @@ where
             if !update {
                 return Ok(t);
             }
-            t = serde_json::from_value::<T>(serde_json::to_value(old_data).unwrap()).unwrap();
-            let _ = c.replace_one(filter.get(), &t, None);
+            t = serde_json::from_value::<T>(serde_json::to_value(old_data)?)?;
+            let _ = c.replace_one(filter.get(), &t, None).await?;
             Ok(t)
         };
 
