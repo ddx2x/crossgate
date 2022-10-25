@@ -20,6 +20,11 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
         Self: 'a,
         T: MongoDbModel;
 
+    type UpdateFuture<'a, T>: Future<Output = crate::Result<T>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
     type RemoveFuture<'a, T>: Future<Output = crate::Result<()>>
     where
         Self: 'a,
@@ -30,6 +35,10 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
         T: MongoDbModel;
 
     fn save_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
+    where
+        T: MongoDbModel;
+
+    fn update_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
     where
         T: MongoDbModel;
 

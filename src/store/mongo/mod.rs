@@ -1,15 +1,17 @@
 mod filter;
+use anyhow::Context;
 pub use filter::MongoFilter;
 use futures::stream::SelectNextSome;
 use mongodb::change_stream::event::ChangeStreamEvent;
 use serde_json::Value;
 mod extends;
 use super::condition::Condition;
-use super::{Context, Event, Filter};
+use super::Context as CTX;
+use super::{Event, Filter};
 use super::{Storage, StoreError};
 use crate::object::Object;
-use crate::utils::dict::get;
-use crate::utils::dict::set;
+
+use crate::utils::dict::{compare_and_merge_value, value_to_map};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -182,7 +184,7 @@ where
 
     fn watch<'r>(
         &'r self,
-        ctx: Context,
+        ctx: CTX,
         db: String,
         table: String,
         q: Condition<F>,
@@ -314,41 +316,37 @@ where
                 }
             };
 
-            if value.is_none() {
-                if t.uid().len() == 0 || t.uid() == "" {
-                    t.generate(|| -> String { ObjectId::new().to_string() });
+            let value = match value {
+                Some(value) => value,
+                None => {
+                    if t.uid().len() == 0 || t.uid() == "" {
+                        t.generate(|| -> String { ObjectId::new().to_string() });
+                    }
+                    let _ = c.insert_one(&t, None).await?;
+                    return Ok(t);
                 }
-                let _ = c.insert_one(&t, None).await?;
-                return Ok(t);
-            }
+            };
 
             let mut update = false;
 
-            let mut new_data_binding = serde_json::to_value(&t)?;
-            let new_data = new_data_binding.as_object_mut().unwrap();
-
-            let mut old_data_binding = serde_json::to_value(&Some(value))?;
-            let old_data = old_data_binding.as_object_mut().unwrap();
+            let new_map = &mut value_to_map::<T>(&t)?;
+            let old_map = &mut value_to_map::<T>(&value)?;
 
             for field in fields.iter() {
-                if !old_data[field].eq(&new_data[field]) {
+                if compare_and_merge_value(old_map, new_map, field) {
                     update = true;
-
-                    if let Some(value) = get(new_data, field) {
-                        set(old_data, field, &value);
-                    }
                 }
             }
-            old_data["version"] = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
+
+            old_map["version"] = SystemTime::now()
+                .duration_since(UNIX_EPOCH)?
                 .as_secs()
                 .into();
 
             if !update {
                 return Ok(t);
             }
-            t = serde_json::from_value::<T>(serde_json::to_value(old_data)?)?;
+            t = serde_json::from_value::<T>(serde_json::to_value(old_map)?)?;
             let _ = c.replace_one(filter.get(), &t, None).await?;
             Ok(t)
         };
@@ -384,18 +382,3 @@ mod tests {
         }
     }
 }
-
-// fn set(src: Value, tag: Value, path: &str) -> bool {
-//     // if !src.eq(&tag) {
-
-//     // }
-//     false
-// }
-
-// fn get<T>(value: Value, path: &str) -> anyhow::Result<T> {
-//     // if !src.eq(&tag) {
-
-//     // }
-
-//     Ok(())
-// }

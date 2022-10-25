@@ -1,7 +1,10 @@
+use crate::utils::dict::{compare_and_merge_value, value_to_map};
+
+use anyhow::Context;
 use bson::Document;
 use futures::{Future, TryStreamExt};
-
 use mongodb::options::FindOptions;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::store::{
     mongo_extends::{MongoDbModel, MongoStorageExtends},
@@ -25,6 +28,11 @@ where
         T: MongoDbModel;
 
     type SaveFuture<'a,T> =  impl Future<Output = crate::Result<()>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    type UpdateFuture<'a, T> = impl Future<Output = crate::Result<T>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -135,6 +143,67 @@ where
             }
 
             return Err(StoreError::DataNotFound.into());
+        };
+        block
+    }
+
+    fn update_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let Condition {
+            db,
+            table,
+            filter,
+            fields,
+            ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
+        let mut t = t;
+
+        let block = async move {
+            let value = match c.find_one(filter.clone().get(), None).await {
+                Ok(value) => value,
+                Err(e) => {
+                    return Err(anyhow::format_err!(
+                        "mongodb get error: {:?}",
+                        StoreError::Other(Box::new(e))
+                    ))
+                }
+            };
+
+            let value = match value {
+                Some(value) => value,
+                None => {
+                    let _ = c.insert_one(&t, None).await?;
+                    return Ok(t);
+                }
+            };
+
+            let mut update = false;
+
+            let new_map = &mut value_to_map::<T>(&t)?;
+            let old_map = &mut value_to_map::<T>(&value)?;
+
+            for field in fields.iter() {
+                if compare_and_merge_value(old_map, new_map, field) {
+                    update = true;
+                }
+            }
+
+            old_map["version"] = SystemTime::now()
+                .duration_since(UNIX_EPOCH)?
+                .as_secs()
+                .into();
+
+            if !update {
+                return Ok(t);
+            }
+            t = serde_json::from_value::<T>(serde_json::to_value(old_map)?)?;
+            let _ = c.replace_one(filter.get(), &t, None).await?;
+
+            Ok(t)
         };
         block
     }

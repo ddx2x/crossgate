@@ -1,4 +1,37 @@
+use anyhow::Context;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use serde_json::{Map, Value};
+
+use crate::Result;
+
+pub fn value_to_map<'a, T: DeserializeOwned + Serialize>(
+    value: &'a T,
+) -> Result<Map<String, Value>> {
+    let mut binding = serde_json::to_value(&value)?;
+    let data = binding
+        .as_object_mut()
+        .context("obj_value to json data is none")?;
+
+    return Ok(data.clone());
+}
+
+pub fn compare_and_merge_value(
+    old_map: &mut Map<String, Value>,
+    new_map: &mut Map<String, Value>,
+    field: &String,
+) -> bool {
+    if let Some(old_value) = get(old_map, field) {
+        if let Some(new_value) = get(new_map, field) {
+            if !old_value.eq(&new_value) {
+                set(old_map, field, &new_value);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
 
 fn shift(path: &String) -> (String, String) {
     let data: Vec<&str> = path.split(".").collect();
@@ -14,7 +47,7 @@ fn shift(path: &String) -> (String, String) {
     return (data[0].to_string(), new_data.to_string());
 }
 
-pub fn get(data: &mut Map<String, Value>, path: &String) -> Option<Value> {
+fn get(data: &mut Map<String, Value>, path: &String) -> Option<Value> {
     let (head, remain) = shift(path);
     let value = data.get(&head)?;
 
@@ -28,7 +61,7 @@ pub fn get(data: &mut Map<String, Value>, path: &String) -> Option<Value> {
     Some(value)
 }
 
-pub fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<Value> {
+fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<Value> {
     let (head, remain) = shift(path);
 
     if remain == "" {
@@ -37,13 +70,12 @@ pub fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Optio
         return Some(serde_json::Value::Object(data.clone()));
     }
 
-    let path_value = data.get(&head)?;
-    let mut binding = path_value.clone();
-    let path_value = binding.as_object_mut()?;
+    let mut path_value = data.get(&head)?.clone();
+    let path_value = path_value.as_object_mut()?;
 
     let res = set(path_value, &remain, value)?;
     data.remove(&head);
     data.insert(head, res);
 
-    return Some(serde_json::Value::Object(data.clone()));
+    return Some(().into());
 }
