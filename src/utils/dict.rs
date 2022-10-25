@@ -8,7 +8,7 @@ use crate::Result;
 pub fn value_to_map<'a, T: DeserializeOwned + Serialize>(
     value: &'a T,
 ) -> Result<Map<String, Value>> {
-    let mut binding = serde_json::to_value(&value)?;
+    let mut binding = serde_json::to_value::<&T>(value)?;
     let data = binding
         .as_object_mut()
         .context("obj_value to json data is none")?;

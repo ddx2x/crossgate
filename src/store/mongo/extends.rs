@@ -1,6 +1,5 @@
 use crate::utils::dict::{compare_and_merge_value, value_to_map};
 
-use anyhow::Context;
 use bson::Document;
 use futures::{Future, TryStreamExt};
 use mongodb::options::FindOptions;
