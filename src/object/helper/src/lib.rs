@@ -1,7 +1,6 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
-use std::time::{SystemTime, UNIX_EPOCH};
 use syn::{parse::Parser, parse_macro_input, ItemStruct};
 
 #[proc_macro_attribute]
@@ -60,12 +59,6 @@ pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
             fn generate(&mut self, f: fn() -> String){
                 self.uid = f()
             }
-            fn get_version(&mut self){
-                self.version = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-            }
         }
 
         pub fn get_kind() -> String{
@@ -76,9 +69,4 @@ pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     ret.into()
-}
-
-#[proc_macro_derive(Object, attributes(helper))]
-pub fn derive_object_fn(_item: TokenStream) -> TokenStream {
-    "fn object() -> u32 { 42 }".parse().unwrap()
 }

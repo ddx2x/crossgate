@@ -191,10 +191,11 @@ where
                 }
             }
 
-            old_map["version"] = SystemTime::now()
-                .duration_since(UNIX_EPOCH)?
-                .as_secs()
-                .into();
+            // remove, non object trait type no need version field
+            // old_map["version"] = SystemTime::now()
+            //     .duration_since(UNIX_EPOCH)?
+            //     .as_secs()
+            //     .into();
 
             if !update {
                 return Ok(t);
