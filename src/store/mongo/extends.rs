@@ -44,7 +44,7 @@ where
     where
         T: MongoDbModel,
     {
-        let block = async move {
+        async move {
             let Condition {
                 db,
                 table,
@@ -89,9 +89,7 @@ where
             }
 
             Ok(items)
-        };
-
-        block
+        }
     }
 
     fn save_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
@@ -118,19 +116,17 @@ where
 
         let c = self.collection::<T>(&db, &table);
 
-        let block = async move {
+        async move {
             let _ = c.delete_many(filter.get(), None).await?;
             Ok(())
-        };
-
-        block
+        }
     }
 
     fn get_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::GetFuture<'r, T>
     where
         T: MongoDbModel,
     {
-        let block = async move {
+        async move {
             let Condition {
                 db, table, filter, ..
             } = q;
@@ -141,8 +137,7 @@ where
             }
 
             return Err(StoreError::DataNotFound.into());
-        };
-        block
+        }
     }
 
     fn update_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
@@ -160,7 +155,7 @@ where
         let c = self.collection::<T>(&db, &table);
         let mut t = t;
 
-        let block = async move {
+        async move {
             let filter = filter.get();
             let old = c.find_one(filter.clone(), None).await?;
 
@@ -175,7 +170,6 @@ where
             }
 
             return Ok(t);
-        };
-        block
+        }
     }
 }

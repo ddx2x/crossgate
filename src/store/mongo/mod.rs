@@ -93,7 +93,7 @@ where
         Self: 'a;
 
     fn list<'r>(&'r self, q: Condition<F>) -> Self::ListFuture<'r> {
-        let block = async move {
+        async move {
             let Condition {
                 db,
                 table,
@@ -151,12 +151,11 @@ where
             }
 
             Ok(items)
-        };
-        block
+        }
     }
 
     fn get<'r>(&'r self, q: Condition<F>) -> Self::GetFuture<'r> {
-        let block = async move {
+        async move {
             let Condition {
                 db, table, filter, ..
             } = q;
@@ -177,8 +176,7 @@ where
                     ))
                 }
             }
-        };
-        block
+        }
     }
 
     fn watch<'r>(
@@ -191,7 +189,7 @@ where
         let client = self.client.clone();
         let Condition { filter, .. } = q;
 
-        let block = async move {
+        async move {
             let (tx, rx) = tokio::sync::mpsc::channel(4);
 
             let collection = client.database(&db).collection::<T>(&table);
@@ -273,9 +271,7 @@ where
             });
 
             Ok(rx)
-        };
-
-        block
+        }
     }
 
     fn save<'r>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r> {
@@ -303,7 +299,7 @@ where
         let c = self.collection::<T>(&db, &table);
         let mut t = t;
 
-        let block = async move {
+        async move {
             let filter = filter.get();
             let old = c.find_one(filter.clone(), None).await?;
 
@@ -320,9 +316,7 @@ where
             }
 
             return Ok(t);
-        };
-
-        block
+        }
     }
 
     fn delete<'r>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r> {
@@ -332,12 +326,10 @@ where
 
         let c = self.collection::<T>(&db, &table);
 
-        let block = async move {
+        async move {
             let _ = c.delete_many(filter.get(), None).await?;
             Ok(())
-        };
-
-        block
+        }
     }
 }
 
