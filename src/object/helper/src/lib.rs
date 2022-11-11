@@ -47,18 +47,11 @@ pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
         pub #item_struct
 
         impl Object for #name {
-            fn uid(&self) -> &str {
-                &self.uid
-            }
-            fn version(&self) -> u64 {
-                self.version
-            }
-            fn kind(&self) -> &str {
-                &self.kind
-            }
-            fn generate(&mut self, f: fn() -> String){
-                self.uid = f()
-            }
+            fn uid(&self) -> &str {&self.uid}
+            fn version(&self) -> u64 {self.version}
+            fn kind(&self) -> &str {&self.kind}
+            fn set_uid(&mut self,id:&str){self.uid = id.to_string()}
+            fn set_version(&mut self,version:u64){self.version = version}
         }
 
         pub fn get_kind() -> String{

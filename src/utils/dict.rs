@@ -5,6 +5,28 @@ use serde_json::{Map, Value};
 
 use crate::Result;
 
+pub fn compare_and_merge<'a, T>(old: &mut T, new: &mut T, fields: Vec<String>) -> Result<T>
+where
+    T: DeserializeOwned + Serialize,
+{
+    let mut new_map = value_to_map::<T>(&new)?;
+    let mut old_map = value_to_map::<T>(&old)?;
+
+    let mut updated = false;
+
+    for field in fields {
+        if !compare_and_merge_value(&mut old_map, &mut new_map, &field) {
+            updated = true;
+        }
+    }
+
+    if updated {
+        return Err(anyhow::anyhow!("not update"));
+    }
+
+    Ok(serde_json::from_value::<T>(serde_json::to_value(old_map)?)?)
+}
+
 pub fn value_to_map<'a, T: DeserializeOwned + Serialize>(
     value: &'a T,
 ) -> Result<Map<String, Value>> {
@@ -88,7 +110,7 @@ fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<Va
 mod test {
     use serde::{Deserialize, Serialize};
 
-    use super::{compare_and_merge_value, get, set, value_to_map};
+    use super::{get, set, value_to_map};
 
     #[derive(Default, Debug, Serialize, Deserialize)]
     pub struct Root {

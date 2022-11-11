@@ -8,12 +8,22 @@ mod error;
 pub use error::StoreError;
 
 use futures::Future;
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use tokio::sync::mpsc::Receiver;
 
 use crate::object::Object;
 
 pub type Context = tokio_context::context::Context;
+
+pub fn current_time_sess() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Event<T> {

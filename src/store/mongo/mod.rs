@@ -3,14 +3,12 @@ pub use filter::MongoFilter;
 use mongodb::change_stream::event::ChangeStreamEvent;
 mod extends;
 use super::condition::Condition;
-use super::Context;
+use super::{current_time_sess, Context};
 use super::{Event, Filter};
 use super::{Storage, StoreError};
 use crate::object::Object;
 
-use crate::utils::dict::{compare_and_merge_value, value_to_map};
-
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::utils::dict::compare_and_merge;
 
 use bson::oid::ObjectId;
 use bson::{doc, Document};
@@ -27,6 +25,10 @@ use tokio::sync::mpsc::Receiver;
 
 pub fn new_mongo_condition() -> Condition<MongoFilter> {
     Condition::new(MongoFilter(doc! {}))
+}
+
+fn uuid() -> String {
+    ObjectId::new().to_string()
 }
 
 pub trait GetFilter {
@@ -281,9 +283,7 @@ where
         let c = self.collection::<T>(&db, &table);
         let block = async move {
             let mut t = t;
-            if t.uid().len() == 0 || t.uid() == "" {
-                t.generate(|| -> String { ObjectId::new().to_string() });
-            }
+            t.uid().is_empty().then(|| t.set_uid(&uuid()));
             let _ = c.insert_one(t, None).await?;
             Ok(())
         };
@@ -299,54 +299,27 @@ where
             fields,
             ..
         } = q;
+
         let c = self.collection::<T>(&db, &table);
         let mut t = t;
+
         let block = async move {
-            let value = match c.find_one(filter.clone().get(), None).await {
-                Ok(value) => value,
+            let filter = filter.get();
+            let old = c.find_one(filter.clone(), None).await?;
 
-                Err(e) => {
-                    return Err(anyhow::format_err!(
-                        "mongodb get error: {:?}",
-                        StoreError::Other(Box::new(e))
-                    ))
-                }
-            };
-            
-
-            let value = match value {
-                Some(value) => value,
-                None => {
-                    if t.uid().len() == 0 || t.uid() == "" {
-                        t.generate(|| -> String { ObjectId::new().to_string() });
-                    }
-                    let _ = c.insert_one(&t, None).await?;
-                    return Ok(t);
-                }
-            };
-
-            let mut update = false;
-
-            let new_map = &mut value_to_map::<T>(&t)?;
-            let old_map = &mut value_to_map::<T>(&value)?;
-
-            for field in fields.iter() {
-                if compare_and_merge_value(old_map, new_map, field) {
-                    update = true;
-                }
-            }
-
-            old_map["version"] = SystemTime::now()
-                .duration_since(UNIX_EPOCH)?
-                .as_secs()
-                .into();
-
-            if !update {
+            if old.is_none() {
+                let _ = c.insert_one(&t, None).await?;
                 return Ok(t);
             }
-            t = serde_json::from_value::<T>(serde_json::to_value(old_map)?)?;
-            let _ = c.replace_one(filter.get(), &t, None).await?;
-            Ok(t)
+
+            if let Ok(mut update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
+                update.set_version(current_time_sess());
+
+                let _ = c.replace_one(filter, &update, None).await?;
+                return Ok(update);
+            }
+
+            return Ok(t);
         };
 
         block

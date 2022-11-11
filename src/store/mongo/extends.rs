@@ -1,9 +1,8 @@
-use crate::utils::dict::{compare_and_merge_value, value_to_map};
+use crate::utils::dict::compare_and_merge;
 
 use bson::Document;
 use futures::{Future, TryStreamExt};
 use mongodb::options::FindOptions;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::store::{
     mongo_extends::{MongoDbModel, MongoStorageExtends},
@@ -162,48 +161,20 @@ where
         let mut t = t;
 
         let block = async move {
-            let value = match c.find_one(filter.clone().get(), None).await {
-                Ok(value) => value,
-                Err(e) => {
-                    return Err(anyhow::format_err!(
-                        "mongodb get error: {:?}",
-                        StoreError::Other(Box::new(e))
-                    ))
-                }
-            };
+            let filter = filter.get();
+            let old = c.find_one(filter.clone(), None).await?;
 
-            let value = match value {
-                Some(value) => value,
-                None => {
-                    let _ = c.insert_one(&t, None).await?;
-                    return Ok(t);
-                }
-            };
-
-            let mut update = false;
-
-            let new_map = &mut value_to_map::<T>(&t)?;
-            let old_map = &mut value_to_map::<T>(&value)?;
-
-            for field in fields.iter() {
-                if compare_and_merge_value(old_map, new_map, field) {
-                    update = true;
-                }
-            }
-
-            // remove, non object trait type no need version field
-            // old_map["version"] = SystemTime::now()
-            //     .duration_since(UNIX_EPOCH)?
-            //     .as_secs()
-            //     .into();
-
-            if !update {
+            if old.is_none() {
+                let _ = c.insert_one(&t, None).await?;
                 return Ok(t);
             }
-            t = serde_json::from_value::<T>(serde_json::to_value(old_map)?)?;
-            let _ = c.replace_one(filter.get(), &t, None).await?;
 
-            Ok(t)
+            if let Ok(update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
+                let _ = c.replace_one(filter, &update, None).await?;
+                return Ok(update);
+            }
+
+            return Ok(t);
         };
         block
     }
