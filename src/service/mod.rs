@@ -1,3 +1,5 @@
+mod mongo_service;
+
 use crate::object::Object;
 use crate::store::{Condition, Context, Event, Filter, Storage};
 
