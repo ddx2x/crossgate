@@ -1,4 +1,6 @@
+//export MongoStoreService
 mod mongo_service;
+pub use mongo_service::MongoStoreService;
 
 use crate::object::Object;
 use crate::store::{Condition, Context, Event, Filter, Storage};

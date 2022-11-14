@@ -9,6 +9,7 @@ use crate::{
 
 use super::Service;
 
+#[derive(Debug,Clone)]
 pub struct MongoStoreService<T>(pub Service<T, MongoFilter, MongoStore>)
 where
     T: Object + Serialize + Debug + DeserializeOwned + std::marker::Unpin;
