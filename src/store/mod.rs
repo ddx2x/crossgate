@@ -88,18 +88,18 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     where
         Self: 'a;
 
-    fn save<'r>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r>;
+    fn save<'r>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r>;
 
-    fn update<'r>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r>;
+    fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r>;
 
-    fn delete<'r>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r>;
+    fn delete<'r>(self, q: Condition<F>) -> Self::RemoveFuture<'r>;
 
-    fn list<'r>(&'r self, q: Condition<F>) -> Self::ListFuture<'r>;
+    fn list<'r>(self, q: Condition<F>) -> Self::ListFuture<'r>;
 
-    fn get<'r>(&'r self, q: Condition<F>) -> Self::GetFuture<'r>;
+    fn get<'r>(self, q: Condition<F>) -> Self::GetFuture<'r>;
 
     fn watch<'r>(
-        &'r self,
+        self,
         ctx: Context,
         db: String,
         table: String,

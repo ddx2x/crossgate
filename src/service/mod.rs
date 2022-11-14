@@ -33,27 +33,28 @@ where
     }
 
     pub async fn list(&self, q: Condition<F>) -> crate::Result<Vec<T>> {
-        self.storage.list(self.intercept(q)).await
+        self.storage.clone().list(self.intercept(q)).await
     }
 
     pub async fn get(&self, q: Condition<F>) -> crate::Result<T> {
-        self.storage.get(self.intercept(q)).await
+        self.storage.clone().get(self.intercept(q)).await
     }
 
     pub async fn update(&self, t: T, q: Condition<F>) -> crate::Result<T> {
-        self.storage.update(t, self.intercept(q)).await
+        self.storage.clone().update(t, self.intercept(q)).await
     }
 
     pub async fn save(&self, t: T, q: Condition<F>) -> crate::Result<()> {
-        self.storage.save(t, self.intercept(q)).await
+        self.storage.clone().save(t, self.intercept(q)).await
     }
 
     pub async fn remove(&self, q: Condition<F>) -> crate::Result<()> {
-        self.storage.delete(self.intercept(q)).await
+        self.storage.clone().delete(self.intercept(q)).await
     }
 
     pub async fn watch(&self, ctx: Context, q: Condition<F>) -> crate::Result<Receiver<Event<T>>> {
         self.storage
+            .clone()
             .watch(ctx, self.schema.to_string(), self.table.to_string(), q)
             .await
     }

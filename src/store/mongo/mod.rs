@@ -92,8 +92,8 @@ where
     where
         Self: 'a;
 
-    fn list<'r>(&'r self, q: Condition<F>) -> Self::ListFuture<'r> {
-        async move {
+    fn list<'r>(self, q: Condition<F>) -> Self::ListFuture<'r> {
+        let block = async move {
             let Condition {
                 db,
                 table,
@@ -129,11 +129,13 @@ where
             }
 
             Ok(items)
-        }
+        };
+
+        block
     }
 
-    fn get<'r>(&'r self, q: Condition<F>) -> Self::GetFuture<'r> {
-        async move {
+    fn get<'r>(self, q: Condition<F>) -> Self::GetFuture<'r> {
+        let block = async move {
             let Condition {
                 db, table, filter, ..
             } = q;
@@ -144,11 +146,13 @@ where
             }
 
             Err(StoreError::DataNotFound.into())
-        }
+        };
+
+        block
     }
 
     fn watch<'r>(
-        &'r self,
+        self,
         ctx: Context,
         db: String,
         table: String,
@@ -242,7 +246,7 @@ where
         }
     }
 
-    fn save<'r>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r> {
+    fn save<'r>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r> {
         let Condition { db, table, .. } = q;
         let c = self.collection::<T>(&db, &table);
         let block = async move {
@@ -255,7 +259,7 @@ where
         block
     }
 
-    fn update<'r>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
+    fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
         let Condition {
             db,
             table,
@@ -287,7 +291,7 @@ where
         }
     }
 
-    fn delete<'r>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r> {
+    fn delete<'r>(self, q: Condition<F>) -> Self::RemoveFuture<'r> {
         let Condition {
             db, table, filter, ..
         } = q;

@@ -40,7 +40,7 @@ where
         Self: 'a,
         T: MongoDbModel;
 
-    fn list_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::ListFuture<'r, T>
+    fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
         T: MongoDbModel,
     {
@@ -92,7 +92,7 @@ where
         }
     }
 
-    fn save_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
+    fn save_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
     where
         T: MongoDbModel,
     {
@@ -106,7 +106,7 @@ where
         block
     }
 
-    fn delete_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
+    fn delete_any_type<'r, T>(self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
     where
         T: MongoDbModel,
     {
@@ -116,17 +116,19 @@ where
 
         let c = self.collection::<T>(&db, &table);
 
-        async move {
+        let block = async move {
             let _ = c.delete_many(filter.get(), None).await?;
             Ok(())
-        }
+        };
+
+        block
     }
 
-    fn get_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::GetFuture<'r, T>
+    fn get_any_type<'r, T>(self, q: Condition<F>) -> Self::GetFuture<'r, T>
     where
         T: MongoDbModel,
     {
-        async move {
+        let block = async move {
             let Condition {
                 db, table, filter, ..
             } = q;
@@ -137,10 +139,12 @@ where
             }
 
             return Err(StoreError::DataNotFound.into());
-        }
+        };
+
+        block
     }
 
-    fn update_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
     where
         T: MongoDbModel,
     {
@@ -155,7 +159,7 @@ where
         let c = self.collection::<T>(&db, &table);
         let mut t = t;
 
-        async move {
+        let block = async move {
             let filter = filter.get();
             let old = c.find_one(filter.clone(), None).await?;
 
@@ -170,6 +174,8 @@ where
             }
 
             return Ok(t);
-        }
+        };
+
+        block
     }
 }

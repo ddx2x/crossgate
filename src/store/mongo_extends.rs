@@ -30,23 +30,23 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
         Self: 'a,
         T: MongoDbModel;
 
-    fn list_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::ListFuture<'r, T>
+    fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
         T: MongoDbModel;
 
-    fn save_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
+    fn save_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
     where
         T: MongoDbModel;
 
-    fn update_any_type<'r, T>(&'r self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
     where
         T: MongoDbModel;
 
-    fn delete_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
+    fn delete_any_type<'r, T>(self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
     where
         T: MongoDbModel;
 
-    fn get_any_type<'r, T>(&'r self, q: Condition<F>) -> Self::GetFuture<'r, T>
+    fn get_any_type<'r, T>(self, q: Condition<F>) -> Self::GetFuture<'r, T>
     where
         T: MongoDbModel;
 }

@@ -170,4 +170,13 @@ mod test {
         let value = get(p_map, &"test.aa.aa.cc".to_string());
         assert_eq!(value, "new_test_data");
     }
+
+    #[test]
+
+    fn test_split_once() {
+        let src = "a.b.c";
+
+        let opt = src.split_once(".");
+        assert_eq!(opt.is_some(), true);
+    }
 }
