@@ -121,33 +121,11 @@ where
                 opt.sort = Some(doc);
             }
 
-            let mut cursor = match c.find(filter.get(), Some(opt)).await {
-                Ok(c) => c,
-                Err(e) => {
-                    return Err(anyhow::format_err!(
-                        "mongodb find error: {:?}",
-                        StoreError::Other(Box::new(e))
-                    ))
-                }
-            };
-
+            let mut cursor = c.find(filter.get(), Some(opt)).await?;
             let mut items = vec![];
-            loop {
-                match cursor.try_next().await {
-                    Ok(item) => {
-                        if let Some(item) = item {
-                            items.push(item);
-                            continue;
-                        }
-                        break;
-                    }
-                    Err(e) => {
-                        return Err(anyhow::format_err!(
-                            "mongodb find cursor error: {:?}",
-                            StoreError::Other(Box::new(e))
-                        ))
-                    }
-                }
+
+            while let Some(item) = cursor.try_next().await? {
+                items.push(item);
             }
 
             Ok(items)
@@ -161,21 +139,11 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            match c.find_one(filter.get(), None).await {
-                Ok(value) => {
-                    if let Some(value) = value {
-                        return Ok(value);
-                    } else {
-                        return Err(StoreError::DataNotFound.into());
-                    }
-                }
-                Err(e) => {
-                    return Err(anyhow::format_err!(
-                        "mongodb get error: {:?}",
-                        StoreError::Other(Box::new(e))
-                    ))
-                }
+            if let Some(value) = c.find_one(filter.get(), None).await? {
+                return Ok(value);
             }
+
+            Err(StoreError::DataNotFound.into())
         }
     }
 
