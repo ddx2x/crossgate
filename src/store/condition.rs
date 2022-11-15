@@ -9,6 +9,7 @@ pub struct Condition<T: Filter> {
     pub(crate) sorts: Vec<String>,
     pub(crate) fields: Vec<String>,
     pub(crate) filter: T,
+    pub(crate) pageable: bool,
 }
 
 impl<T> Condition<T>
@@ -19,7 +20,8 @@ where
         Self {
             db: Default::default(),
             table: Default::default(),
-            page: 1,
+            pageable: false,
+            page: 0,
             page_size: 10,
             sorts: Default::default(),
             fields: Default::default(),
@@ -57,6 +59,7 @@ where
     pub fn with_page(&mut self, page: usize, page_size: usize) -> &mut Condition<T> {
         self.page = page;
         self.page_size = page_size;
+        self.pageable = true;
         self
     }
 
