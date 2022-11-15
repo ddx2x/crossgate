@@ -110,7 +110,7 @@ where
             let mut opt = FindOptions::builder().build();
 
             if pageable {
-                opt.skip = Some(((page - 1) * page_size) as u64);
+                opt.skip = Some((page * page_size) as u64);
                 opt.limit = Some(page_size as i64);
             }
 
