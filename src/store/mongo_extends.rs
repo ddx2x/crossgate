@@ -1,6 +1,7 @@
-use super::{Condition, Filter};
+use super::{Condition, Context, Event, Filter};
 use futures::Future;
 use serde::de::DeserializeOwned;
+use tokio::sync::mpsc::Receiver;
 
 pub trait MongoDbModel: Sync + Send + Unpin + serde::Serialize + DeserializeOwned {}
 
@@ -30,6 +31,11 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
         Self: 'a,
         T: MongoDbModel;
 
+    type StreamFuture<'a, T>: Future<Output = crate::Result<Receiver<Event<T>>>>
+    where
+        Self: 'a,
+        T: MongoDbModel + 'static;
+
     fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
         T: MongoDbModel;
@@ -49,4 +55,8 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     fn get_any_type<'r, T>(self, q: Condition<F>) -> Self::GetFuture<'r, T>
     where
         T: MongoDbModel;
+
+    fn watch_any_type<'r, T>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r, T>
+    where
+        T: MongoDbModel + 'static;
 }

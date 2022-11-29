@@ -1,8 +1,14 @@
 use crate::utils::dict::compare_and_merge;
 
+use crate::store::Event;
 use bson::Document;
 use futures::{Future, TryStreamExt};
-use mongodb::options::FindOptions;
+use mongodb::{
+    change_stream::event::{ChangeStreamEvent, OperationType},
+    options::{ChangeStreamOptions, FindOptions, FullDocumentType},
+};
+
+use tokio::sync::mpsc::Receiver;
 
 use crate::store::{
     mongo_extends::{MongoDbModel, MongoStorageExtends},
@@ -39,6 +45,11 @@ where
     where
         Self: 'a,
         T: MongoDbModel;
+
+    type StreamFuture<'a, T> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
+    where
+        Self: 'a,
+        T: MongoDbModel+ 'static;
 
     fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
@@ -107,6 +118,41 @@ where
         block
     }
 
+    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let Condition {
+            db,
+            table,
+            filter,
+            fields,
+            ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
+        let mut t = t;
+
+        let block = async move {
+            let filter = filter.get();
+            let old = c.find_one(filter.clone(), None).await?;
+
+            if old.is_none() {
+                let _ = c.insert_one(&t, None).await?;
+                return Ok(t);
+            }
+
+            if let Ok(update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
+                let _ = c.replace_one(filter, &update, None).await?;
+                return Ok(update);
+            }
+
+            return Ok(t);
+        };
+
+        block
+    }
+
     fn delete_any_type<'r, T>(self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
     where
         T: MongoDbModel,
@@ -145,36 +191,100 @@ where
         block
     }
 
-    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    fn watch_any_type<'r, T>(
+        self,
+        ctx: crate::store::Context,
+        q: Condition<F>,
+    ) -> Self::StreamFuture<'r, T>
     where
         T: MongoDbModel,
     {
+        let client = self.client.clone();
         let Condition {
-            db,
-            table,
-            filter,
-            fields,
-            ..
+            filter, db, table, ..
         } = q;
 
-        let c = self.collection::<T>(&db, &table);
-        let mut t = t;
-
         let block = async move {
-            let filter = filter.get();
-            let old = c.find_one(filter.clone(), None).await?;
+            let (tx, rx) = tokio::sync::mpsc::channel(4);
 
-            if old.is_none() {
-                let _ = c.insert_one(&t, None).await?;
-                return Ok(t);
-            }
+            let collection = client.database(&db).collection::<T>(&table);
+            let mut cursor = collection.find(filter.get(), None).await?;
 
-            if let Ok(update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
-                let _ = c.replace_one(filter, &update, None).await?;
-                return Ok(update);
-            }
+            let options = ChangeStreamOptions::builder()
+                .full_document(Some(FullDocumentType::UpdateLookup))
+                .build();
 
-            return Ok(t);
+            let mut stream = collection.watch(None, options).await?;
+
+            tokio::spawn(async move {
+                let loop_block = async {
+                    while let Ok(Some(item)) = cursor.try_next().await {
+                        if let Err(e) = tx.send(Event::Added(item)).await {
+                            log::error!("watch find send: {}", e.to_string());
+                            break;
+                        }
+                    }
+
+                    while let Ok(Some(evt)) = stream.try_next().await {
+                        let ChangeStreamEvent::<T> {
+                            operation_type,
+                            full_document,
+                            document_key,
+                            ..
+                        } = evt;
+
+                        match operation_type {
+                            OperationType::Insert => {
+                                if full_document.is_none() {
+                                    break;
+                                }
+                                if let Err(e) = tx.send(Event::Added(full_document.unwrap())).await
+                                {
+                                    log::error!("{:?}", e.to_string());
+                                    break;
+                                }
+                            }
+                            OperationType::Update | OperationType::Replace => {
+                                if full_document.is_none() {
+                                    break;
+                                }
+                                if let Err(e) =
+                                    tx.send(Event::Updated(full_document.unwrap())).await
+                                {
+                                    log::error!("{:?}", e.to_string());
+                                    break;
+                                }
+                            }
+                            OperationType::Delete => {
+                                if document_key.is_none() {
+                                    break;
+                                }
+                                match mongodb::bson::from_document::<T>(document_key.unwrap()) {
+                                    Ok(doc) => {
+                                        if let Err(e) = tx.send(Event::Deleted(doc)).await {
+                                            log::error!("{:?}", e.to_string());
+                                            break;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        log::error!("{:?}", e.to_string());
+                                        break;
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                };
+
+                let mut ctx = ctx;
+                tokio::select! {
+                    _ = loop_block => {},
+                    _ = ctx.done() => return,
+                }
+            });
+
+            Ok(rx)
         };
 
         block
