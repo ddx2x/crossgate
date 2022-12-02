@@ -1,12 +1,27 @@
 use super::Filter;
 
+#[derive(
+    PartialEq, Debug, Copy, Clone, serde_repr::Serialize_repr, serde_repr::Deserialize_repr,
+)]
+#[repr(u8)]
+pub enum SortDirection {
+    Ascending = 1,
+    Descending = 2,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct Sort {
+    pub field: String,
+    pub order: SortDirection,
+}
+
 #[derive(Clone, Debug)]
 pub struct Condition<T: Filter> {
     pub(crate) db: String,
     pub(crate) table: String,
     pub(crate) page: usize,
-    pub(crate) page_size: usize,
-    pub(crate) sorts: Vec<String>,
+    pub(crate) size: usize,
+    pub(crate) sorts: Vec<Sort>,
     pub(crate) fields: Vec<String>,
     pub(crate) filter: T,
     pub(crate) pageable: bool,
@@ -22,7 +37,7 @@ where
             table: Default::default(),
             pageable: false,
             page: 0,
-            page_size: 10,
+            size: 10,
             sorts: Default::default(),
             fields: Default::default(),
             filter: t,
@@ -38,12 +53,8 @@ where
         self
     }
 
-    pub fn with_sort(&mut self, sorts: &[&str]) -> &mut Condition<T> {
-        let sort = sorts
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>();
-        self.sorts = sort;
+    pub fn with_sort(&mut self, sorts: Vec<Sort>) -> &mut Condition<T> {
+        self.sorts = sorts;
         self
     }
 
@@ -56,9 +67,9 @@ where
         self
     }
 
-    pub fn with_page(&mut self, page: usize, page_size: usize) -> &mut Condition<T> {
+    pub fn with_page(&mut self, page: usize, size: usize) -> &mut Condition<T> {
         self.page = page;
-        self.page_size = page_size;
+        self.size = size;
         self.pageable = true;
         self
     }
@@ -66,10 +77,6 @@ where
     pub fn wheres(&mut self, input: &str) -> anyhow::Result<()> {
         self.filter.parse(input)?;
         Ok(())
-    }
-
-    pub fn sorts<'a>(&'a self) -> &'a [String] {
-        self.sorts.as_slice()
     }
 }
 

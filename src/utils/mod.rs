@@ -20,4 +20,8 @@ impl Unstructed {
             self.0.clone(),
         ))?)
     }
+    
+    pub fn keys(&self) -> Vec<String> {
+        self.0.keys().map(|key| key.to_string()).collect()
+    }
 }

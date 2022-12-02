@@ -61,7 +61,7 @@ where
                 table,
                 filter,
                 page,
-                page_size,
+                size: page_size,
                 fields,
                 sorts,
                 pageable,
@@ -80,7 +80,12 @@ where
             if sorts.len() > 0 {
                 let mut doc = Document::new();
                 for s in sorts {
-                    doc.insert(s.clone(), 1);
+                    match s.order {
+                        crate::store::condition::SortDirection::Ascending => doc.insert(s.field, 1),
+                        crate::store::condition::SortDirection::Descending => {
+                            doc.insert(s.field, -1)
+                        }
+                    };
                 }
                 opt.sort = Some(doc);
             }
