@@ -62,3 +62,5 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel + 'static;
 }
+
+impl MongoDbModel for utils::Unstructed {}
