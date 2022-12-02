@@ -10,5 +10,3 @@ pub mod store;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T> = anyhow::Result<T>;
-
-

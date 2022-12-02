@@ -67,7 +67,7 @@ fn shift(path: &String) -> (String, String) {
     return (data[0].to_string(), new_data.to_string());
 }
 
-fn get(data: &mut Map<String, Value>, path: &String) -> Value {
+pub(crate) fn get(data: &mut Map<String, Value>, path: &String) -> Value {
     let (head, remain) = shift(path);
     if let Some(value) = data.get_mut(&head) {
         if remain != "" {
@@ -83,7 +83,7 @@ fn get(data: &mut Map<String, Value>, path: &String) -> Value {
     return Value::Null;
 }
 
-fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<Value> {
+pub(crate) fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<Value> {
     let (head, remain) = shift(path);
 
     if remain == "" {
