@@ -1,11 +1,14 @@
 use crate::utils;
 
 use super::{Condition, Context, Event, Filter};
+use bson::Document;
 use futures::Future;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc::Receiver;
 
 pub trait MongoDbModel: Sync + Send + Unpin + serde::Serialize + DeserializeOwned {}
+
+impl MongoDbModel for utils::Unstructed {}
 
 pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     type ListFuture<'a, T>: Future<Output = crate::Result<Vec<T>>>
@@ -63,4 +66,18 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
         T: MongoDbModel + 'static;
 }
 
-impl MongoDbModel for utils::Unstructed {}
+pub trait MongoStorageAggregationExtends: Sync + Send + Clone + 'static {
+    type AggregationListFuture<'a, T>: Future<Output = crate::Result<Vec<T>>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn aggregate<'r, T>(
+        self,
+        db: String,
+        table: String,
+        q: Vec<Document>,
+    ) -> Self::AggregationListFuture<'r, T>
+    where
+        T: MongoDbModel;
+}

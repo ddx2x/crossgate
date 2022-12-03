@@ -1,8 +1,9 @@
-use crate::utils::dict::compare_and_merge;
+use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::compare_and_merge};
 
 use crate::store::Event;
 use bson::Document;
 use futures::{Future, TryStreamExt};
+use mongodb::options::{AggregateOptions, AggregateOptionsBuilder};
 use mongodb::{
     change_stream::event::{ChangeStreamEvent, OperationType},
     options::{ChangeStreamOptions, FindOptions, FullDocumentType},
@@ -290,6 +291,44 @@ where
             });
 
             Ok(rx)
+        };
+
+        block
+    }
+}
+
+impl MongoStorageAggregationExtends for MongoStore {
+    type AggregationListFuture<'a, T> =  impl Future<Output = crate::Result<Vec<T>>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn aggregate<'r, T>(
+        self,
+        db: String,
+        table: String,
+        q: Vec<Document>,
+    ) -> Self::AggregationListFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let client = self.client.clone();
+
+        let block = async move {
+            let mut rs: Vec<T> = vec![];
+            let options = None;
+
+            let mut cursor = client
+                .database(&db)
+                .collection::<T>(&table)
+                .aggregate(q, options)
+                .await?;
+
+            while let Some(item) = cursor.try_next().await? {
+                rs.push(bson::from_document(item)?);
+            }
+
+            Ok(rs)
         };
 
         block
