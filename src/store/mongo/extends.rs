@@ -316,7 +316,11 @@ impl MongoStorageAggregationExtends for MongoStore {
 
         let block = async move {
             let mut rs: Vec<T> = vec![];
-            let options = None;
+            let options = Some(
+                AggregateOptions::builder()
+                    .allow_disk_use(Some(true))
+                    .build(),
+            );
 
             let mut cursor = client
                 .database(&db)
