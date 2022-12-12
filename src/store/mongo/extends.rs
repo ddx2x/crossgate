@@ -52,6 +52,11 @@ where
         Self: 'a,
         T: MongoDbModel+ 'static;
 
+    type CountFuture<'a, T> = impl Future<Output = crate::Result<u64>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
     fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
         T: MongoDbModel,
@@ -291,6 +296,22 @@ where
             });
 
             Ok(rx)
+        };
+
+        block
+    }
+
+    fn count<'r, T>(self, q: Condition<F>) -> Self::CountFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let block = async move {
+            let Condition {
+                db, table, filter, ..
+            } = q;
+            let c = self.collection::<T>(&db, &table);
+
+            Ok(c.count_documents(filter.get(), None).await?)
         };
 
         block

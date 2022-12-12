@@ -41,6 +41,11 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
         Self: 'a,
         T: MongoDbModel + 'static;
 
+    type CountFuture<'a, T>: Future<Output = crate::Result<u64>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
     fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
         T: MongoDbModel;
@@ -64,6 +69,10 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     fn watch_any_type<'r, T>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r, T>
     where
         T: MongoDbModel + 'static;
+
+    fn count<'r, T>(self, q: Condition<F>) -> Self::CountFuture<'r, T>
+    where
+        T: MongoDbModel;
 }
 
 pub trait MongoStorageAggregationExtends: Sync + Send + Clone + 'static {
