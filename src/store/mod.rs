@@ -67,40 +67,35 @@ pub trait Filter: Clone + Debug {
 }
 
 pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
-    type ListFuture<'a>: Future<Output = crate::Result<Vec<T>>>
-    where
-        Self: 'a;
-
-    type GetFuture<'a>: Future<Output = crate::Result<T>>
-    where
-        Self: 'a;
-
     type SaveFuture<'a>: Future<Output = crate::Result<()>>
-    where
-        Self: 'a;
-
-    type UpdateFuture<'a>: Future<Output = crate::Result<T>>
-    where
-        Self: 'a;
-
-    type RemoveFuture<'a>: Future<Output = crate::Result<()>>
-    where
-        Self: 'a;
-
-    type StreamFuture<'a>: Future<Output = crate::Result<Receiver<Event<T>>>>
     where
         Self: 'a;
 
     fn save<'r>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r>;
 
+    type UpdateFuture<'a>: Future<Output = crate::Result<T>>
+    where
+        Self: 'a;
     fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r>;
 
+    type RemoveFuture<'a>: Future<Output = crate::Result<()>>
+    where
+        Self: 'a;
     fn delete<'r>(self, q: Condition<F>) -> Self::RemoveFuture<'r>;
 
+    type ListFuture<'a>: Future<Output = crate::Result<Vec<T>>>
+    where
+        Self: 'a;
     fn list<'r>(self, q: Condition<F>) -> Self::ListFuture<'r>;
 
+    type GetFuture<'a>: Future<Output = crate::Result<T>>
+    where
+        Self: 'a;
     fn get<'r>(self, q: Condition<F>) -> Self::GetFuture<'r>;
 
+    type StreamFuture<'a>: Future<Output = crate::Result<Receiver<Event<T>>>>
+    where
+        Self: 'a;
     fn watch<'r>(
         self,
         ctx: Context,
@@ -108,4 +103,9 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
         table: String,
         q: Condition<F>,
     ) -> Self::StreamFuture<'r>;
+
+    type CountFuture<'a>: Future<Output = crate::Result<u64>>
+    where
+        Self: 'a;
+    fn count<'r>(self, q: Condition<F>) -> Self::CountFuture<'r>;
 }

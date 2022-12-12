@@ -307,6 +307,22 @@ where
             Ok(())
         }
     }
+
+    type CountFuture<'a>= impl Future<Output = crate::Result<u64>>
+    where
+        Self: 'a;
+
+    fn count<'r>(self, q: Condition<F>) -> Self::CountFuture<'r> {
+        let block = async move {
+            let Condition {
+                db, table, filter, ..
+            } = q;
+            let c = self.collection::<T>(&db, &table);
+
+            Ok(c.count_documents(filter.get(), None).await?)
+        };
+        block
+    }
 }
 
 #[cfg(test)]
