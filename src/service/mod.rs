@@ -56,6 +56,10 @@ where
         self.storage.clone().delete(self.intercept(q)).await
     }
 
+    pub async fn count(&self, q: Condition<F>) -> crate::Result<u64> {
+        self.storage.clone().count(self.intercept(q)).await
+    }
+
     pub async fn watch(&self, ctx: Context, q: Condition<F>) -> crate::Result<Receiver<Event<T>>> {
         self.storage
             .clone()
