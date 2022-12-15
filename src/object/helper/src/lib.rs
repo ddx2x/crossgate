@@ -1,7 +1,8 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
+use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{parse::Parser, parse_macro_input, ItemStruct};
+use syn::{parse::Parser, parse_macro_input, parse_quote, ItemFn, ItemStruct};
 
 #[proc_macro_attribute]
 pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -13,9 +14,11 @@ pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let name = item_struct.ident.clone();
-    let kind = name.clone().to_string();
+    let kind_name_str = name.to_string().to_ascii_lowercase();
+    let kind = Ident::new(&kind_name_str, Span::call_site());
+    let kind_fn = ItemFn::from(parse_quote!(fn #kind()->String {#kind_name_str.to_string()}));
 
-    let meta = vec![
+    let metadata_fields = vec![
         syn::Field::parse_named
             .parse2(quote! {
                #[serde(rename(serialize = #uid, deserialize = #uid))]
@@ -31,14 +34,14 @@ pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
             .unwrap(),
         syn::Field::parse_named
             .parse2(quote! {
-                #[serde(default="get_kind")]
+                #[serde(default=#kind_name_str)]
                 pub kind: String
             })
             .unwrap(),
     ];
 
     if let syn::Fields::Named(ref mut fields) = item_struct.fields {
-        fields.named.extend(meta);
+        fields.named.extend(metadata_fields);
     }
 
     let ret = quote! {
@@ -54,11 +57,7 @@ pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
             fn set_version(&mut self,version:u64){self.version = version}
         }
 
-        pub fn get_kind() -> String{
-            #kind.to_string()
-        }
-
-
+        #kind_fn
     };
 
     ret.into()

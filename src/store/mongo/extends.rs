@@ -3,7 +3,7 @@ use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::c
 use crate::store::Event;
 use bson::Document;
 use futures::{Future, TryStreamExt};
-use mongodb::options::{AggregateOptions, AggregateOptionsBuilder};
+use mongodb::options::AggregateOptions;
 use mongodb::{
     change_stream::event::{ChangeStreamEvent, OperationType},
     options::{ChangeStreamOptions, FindOptions, FullDocumentType},

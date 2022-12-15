@@ -33,6 +33,9 @@ path = './condition'
 [dev-dependencies]
 tokio-test = "0.4.2"
 
+[[bin]]
+name = "object"
+path = "bin/object/main.rs"
 
 [profile.release]
 opt-level = 'z'
