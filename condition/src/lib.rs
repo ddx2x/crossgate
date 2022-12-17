@@ -2,7 +2,7 @@
 
 use lrlex::lrlex_mod;
 use lrpar::{lrpar_mod, Span};
-use serde_json::{Map, Number};
+use serde_json::Number;
 
 lrlex_mod!("cond.l");
 lrpar_mod!("cond.y");
