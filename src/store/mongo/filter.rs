@@ -300,4 +300,13 @@ mod test {
             Err(e) => panic!("{}", e),
         };
     }
+
+     #[test]
+    fn test_parse_strings() {
+        let mut mf = MongoFilter(doc! {});
+        match mf.parse(r#"a = 1.2 || b = 'abc' ||c="cde""#) {
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        };
+    }
 }
