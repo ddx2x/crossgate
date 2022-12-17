@@ -74,9 +74,9 @@ where
         self
     }
 
-    pub fn wheres(&mut self, input: &str) -> anyhow::Result<()> {
+    pub fn wheres(&mut self, input: &str) -> anyhow::Result<&mut Self> {
         self.filter.parse(input)?;
-        Ok(())
+        Ok(self)
     }
 }
 
