@@ -43,7 +43,7 @@ impl MongoFilter {
 
         if op == "$in" || op == "$nin" {
             let mut str_vec = vec![];
-            let mut int_vec = vec![];
+            let mut number_vec = vec![];
 
             if let condition::Value::List(vs) = v {
                 for v in vs {
@@ -52,7 +52,19 @@ impl MongoFilter {
                             str_vec.push(v.as_str().to_string());
                         }
                         condition::Value::Number(v) => {
-                            int_vec.push(Bson::Int64(*v as i64));
+                            if v.is_f64() {
+                                if let Some(v) = v.as_f64() {
+                                    number_vec.push(Bson::from(v));
+                                }
+                            } else if v.is_i64() {
+                                if let Some(v) = v.as_i64() {
+                                    number_vec.push(Bson::from(v));
+                                }
+                            } else if v.is_u64() {
+                                if let Some(v) = v.as_u64() {
+                                    number_vec.push(Bson::from(v as i64));
+                                }
+                            }
                         }
                         _ => return Err(anyhow::anyhow!("in op unsupport non int or charts")),
                     }
@@ -61,7 +73,7 @@ impl MongoFilter {
                 return Err(anyhow::anyhow!("in op just only support list"));
             }
 
-            if str_vec.len() > 0 && int_vec.len() > 0 {
+            if str_vec.len() > 0 && number_vec.len() > 0 {
                 return Err(anyhow::anyhow!(
                     "only supports the same type of int or charts in the list"
                 ));
@@ -70,7 +82,7 @@ impl MongoFilter {
             if str_vec.len() > 0 {
                 doc.insert(k, doc! {op:str_vec});
             } else {
-                doc.insert(k, doc! {op:int_vec});
+                doc.insert(k, doc! {op:number_vec});
             }
 
             return Ok(doc);
@@ -88,7 +100,23 @@ impl MongoFilter {
 
         doc = match v {
             condition::Value::Text(v) => doc! {k:doc! {op:v.as_str().to_string()}},
-            condition::Value::Number(v) => doc! {k:doc!{op:Bson::Int64(*v as i64)}},
+            condition::Value::Number(v) => {
+                let mut value: Bson = Bson::Null;
+                if v.is_f64() {
+                    if let Some(v) = v.as_f64() {
+                        value = Bson::from(v);
+                    }
+                } else if v.is_i64() {
+                    if let Some(v) = v.as_i64() {
+                        value = Bson::from(v);
+                    }
+                } else if v.is_u64() {
+                    if let Some(v) = v.as_u64() {
+                        value = Bson::from(v as i64);
+                    }
+                }
+                doc! {k:doc!{op:value}}
+            }
             condition::Value::Bool(v) => doc! {k:doc!{op:Bson::Boolean(*v)}},
             _ => return Err(anyhow::anyhow!("unsupport type parse")),
         };
@@ -231,7 +259,7 @@ mod test {
 
     #[test]
     fn test_parse_cond3() {
-        let sym = "a=1 && (b=2 || c=1 && b=2)";
+        let sym = r#"a=1 && (b="2" || c=1 && b='2')"#;
         let mut mf = MongoFilter(doc! {});
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
@@ -257,6 +285,16 @@ mod test {
     fn test_parse_like() {
         let mut mf = MongoFilter(doc! {});
         match mf.parse("a ! '^1.2'") {
+            // prefix 1.2
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        };
+    }
+
+    #[test]
+    fn test_parse_f64() {
+        let mut mf = MongoFilter(doc! {});
+        match mf.parse("a = 1.2") {
             // prefix 1.2
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),

@@ -1,12 +1,10 @@
 %%
-[0-9]+             "INT"
+[0-9.]+            "NUMBER"
 ^[A-Za-z0-9-_.]+   "IDENT"
-'(.*)+'            "TEXT"
-[true|false]       "BOOL"
-
-\([0-9,]+\)        "INT_ARRAY"
-\('(.*)+'\)        "TEXT_ARRAY"
-
+(('(.*)+')|("(.*)+"))          "STRING"
+(true|false)       "BOOL"
+\([0-9.,]+\)       "NUMBER_ARRAY"
+(\('(.*)+'\)|\("(.*)+"\))       "STRING_ARRAY"
 !                  "LIKE"
 !!                 "NLIKE"
 ~                  "IN"

@@ -1,5 +1,5 @@
 %start Expr
-%token TEXT INT IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'INT_ARRAY' 'TEXT_ARRAY'
+%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY'
 %left '||'
 %right '&&'
 
@@ -8,7 +8,6 @@ Expr -> Expr:
     Factor { $1 }
   | Exprs  { $1 }
   ;
-
 
 Exprs -> Expr:
     Factor '||' Factor { Expr::Or { span: $span, lhs: Box::new($1), rhs: Box::new($3) }  }
@@ -67,17 +66,17 @@ NumberCompare -> Expr:
 Ident -> String:
   'IDENT' { String::from($lexer.span_str($1.as_ref().unwrap().span())) } 
   ;
-Number -> u64:
-  'INT' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<u64>().unwrap() }
+Number -> Number:
+  'NUMBER' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<Number>().unwrap() }
   ;
 Text -> String:
-  'TEXT' { remove_apostrophe(String::from($lexer.span_str($1.as_ref().unwrap().span()))) } 
+  'STRING' { remove_apostrophe(String::from($lexer.span_str($1.as_ref().unwrap().span()))) } 
   ;
 Bool -> bool:
   'BOOL' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<bool>().unwrap() }
   ;
 IntArray -> Value:
-  'INT_ARRAY' 
+  'NUMBER_ARRAY' 
   {
        let mut rs = vec![];
        let src = String::from($lexer.span_str($1.as_ref().unwrap().span()));
@@ -88,13 +87,13 @@ IntArray -> Value:
             .trim_end_matches(")")
             .split(",");
       for item in items {
-          rs.push(Value::Number(item.parse::<u64>().unwrap()));
+          rs.push(Value::Number(item.parse::<Number>().unwrap()));
       }
       Value::List(rs)
   }
   ;
 TextArray -> Value:
-  'TEXT_ARRAY' 
+  'STRING_ARRAY' 
   {
        let mut rs = vec![];
        let src = String::from($lexer.span_str($1.as_ref().unwrap().span()));
@@ -115,3 +114,4 @@ TextArray -> Value:
 
 // use lrpar::Span;
 use crate::*;
+use serde_json::Number;

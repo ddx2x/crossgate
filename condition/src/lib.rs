@@ -2,6 +2,7 @@
 
 use lrlex::lrlex_mod;
 use lrpar::{lrpar_mod, Span};
+use serde_json::Number;
 
 lrlex_mod!("cond.l");
 lrpar_mod!("cond.y");
@@ -92,7 +93,7 @@ pub enum Expr {
 #[derive(Clone, Debug)]
 pub enum Value {
     Text(String), // abc="123"
-    Number(u64),  // abc=123
+    Number(Number),  // abc=123, abc=1.2...
     Bool(bool),
     List(Vec<Value>),
     Field(String), // a=b field.a = field.b
@@ -122,6 +123,12 @@ pub fn parse<'a>(s: &'a str) -> anyhow::Result<Expr> {
         Some(expr) => Ok(expr),
         None => return Err(anyhow::anyhow!("{}", "Unable to evaluate expression.")),
     }
+}
+
+
+
+pub fn matchs() -> bool {
+    false
 }
 
 pub(crate) fn remove_apostrophe(s: String) -> String {
