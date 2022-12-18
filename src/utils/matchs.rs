@@ -320,7 +320,6 @@ mod tests {
         match matchs(&mut datas.clone(), parse("name !! '^b.'").unwrap()) {
             Ok(r) => {
                 if r.len() != 1 {
-                    // TODO:.
                     panic!("Inconsistent expected results")
                 }
                 println!("not like data {:?}", r);
