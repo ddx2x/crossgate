@@ -126,10 +126,17 @@ pub fn parse<'a>(s: &'a str) -> anyhow::Result<Expr> {
 }
 
 pub(crate) fn remove_apostrophe(s: String) -> String {
-    s.trim_end_matches("'")
-        .to_string()
-        .trim_start_matches("'")
-        .to_string()
+    if s.starts_with('\'') {
+        s.trim_end_matches("'")
+            .to_string()
+            .trim_start_matches("'")
+            .to_string()
+    } else {
+        s.trim_end_matches("\"")
+            .to_string()
+            .trim_start_matches("\"")
+            .to_string()
+    }
 }
 
 #[cfg(test)]
@@ -138,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_base() {
-        let sym = "a=1&&b=2||b=2&&c=1||com_id=1||com-id=2&&com-name='abc'";
+        let sym = r#"a=1&&b=2||b=2&&c=1||com_id=1||com-id=2&&com-name='abc'"#;
 
         match parse(sym) {
             Ok(rs) => println!("{:#?}", rs),
@@ -148,6 +155,14 @@ mod tests {
         let sym = "a.x.x=1";
 
         match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
+    fn test_double_quotes() {
+        match parse(r#"abc="123""#) {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
         }
