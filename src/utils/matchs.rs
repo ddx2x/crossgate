@@ -41,6 +41,12 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                         }
                         return false;
                     }
+                    condition::Value::Bool(t) => {
+                        if let Value::Bool(s) = s {
+                            return s.eq(t);
+                        }
+                        return false;
+                    }
                     _ => return false,
                 }
             }
@@ -58,6 +64,12 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                     }
                     condition::Value::Number(t) => {
                         if let Value::Number(s) = s {
+                            return !s.eq(t);
+                        }
+                        return false;
+                    }
+                    condition::Value::Bool(t) => {
+                        if let Value::Bool(s) = s {
                             return !s.eq(t);
                         }
                         return false;
@@ -398,6 +410,27 @@ mod tests {
                 }
 
                 println!("joint data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_bool() {
+        let datas = vec![
+            from_str(r#"{"name":"bobo","active":false}"#).unwrap(),
+            from_str(r#"{"name":"bill","active":false}"#).unwrap(),
+            from_str(r#"{"name":"alex","active":true}"#).unwrap(),
+        ];
+
+        // where active is true
+        match matchs(&mut datas.clone(), parse("active = true").unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("bool data {:?}", r);
             }
             Err(e) => panic!("simulation data error: {}", e),
         }

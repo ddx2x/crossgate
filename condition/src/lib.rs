@@ -246,4 +246,19 @@ mod tests {
             Err(e) => panic!("{}", e),
         };
     }
+
+     #[test]
+    fn test_bool() {
+        // is false
+        match parse("active = false") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+
+        // is true
+        match parse("active = true") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+    }
 }

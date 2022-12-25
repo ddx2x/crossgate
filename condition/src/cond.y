@@ -26,6 +26,13 @@ Factor -> Expr:
   | TextCompare   { $1 }
   | NumberCompare { $1 }
   | IdentCompare  { $1 }
+  | BoolExpr { $1 }
+  ;
+
+BoolExpr -> Expr:
+    Ident '='  Bool { Expr::Eq { span: $span, field: $1, value: Value::Bool($3) } }
+  | Ident '<>' Bool { Expr::Ne { span: $span, field: $1, value: Value::Bool($3) } }
+  | Ident '!=' Bool { Expr::Ne { span: $span, field: $1, value: Value::Bool($3) } }
   ;
 
 IdentCompare -> Expr:
