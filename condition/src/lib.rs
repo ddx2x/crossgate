@@ -188,6 +188,16 @@ mod tests {
         }
     }
 
+      #[test]
+    fn test_base4() {
+        let sym = r#"a="2" && b="2""#;
+
+        match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
     #[test]
     fn test_like() {
         let sym = "a ! '^abc' ";

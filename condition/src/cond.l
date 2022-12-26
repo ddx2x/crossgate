@@ -1,9 +1,9 @@
 %%
 [0-9.]+                        "NUMBER"
-(('(.*)+')|("(.*)+"))          "STRING"
+'(.*?)'|"(.*?)"                "STRING"
 (true|false)                   "BOOL"
 \([0-9.,]+\)                   "NUMBER_ARRAY"
-(\('(.*)+'\)|\("(.*)+"\))      "STRING_ARRAY"
+\("(.*?)"\)|\('(.*?)'\)        "STRING_ARRAY"
 ^[A-Za-z0-9-_.]+               "IDENT"
 !                  "LIKE"
 !!                 "NLIKE"
