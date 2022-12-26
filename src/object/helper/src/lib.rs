@@ -46,7 +46,6 @@ pub fn decorate(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let ret = quote! {
         #[derive(Debug,Clone,serde::Deserialize,serde::Serialize)]
-        #[serde(deny_unknown_fields)]
         pub #item_struct
 
         impl Object for #name {
