@@ -74,8 +74,8 @@ where
         self
     }
 
-    pub fn wheres(&mut self, input: &str) -> anyhow::Result<&mut Self> {
-        self.filter.parse(input)?;
+    pub fn wheres<S: ToString + ?Sized>(&mut self, input: &S) -> anyhow::Result<&mut Self> {
+        self.filter.parse(&input.to_string())?;
         Ok(self)
     }
 }

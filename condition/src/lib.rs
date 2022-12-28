@@ -100,10 +100,11 @@ pub enum Value {
     Null,
 }
 
-pub fn parse<'a>(s: &'a str) -> anyhow::Result<Expr> {
+pub fn parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
     let lexerdef = cond_l::lexerdef();
 
-    let lexer = lexerdef.lexer(s);
+    let binding = s.to_string();
+    let lexer = lexerdef.lexer(&binding);
     let (res, errs) = cond_y::parse(&lexer);
 
     let mut errors = vec![];
@@ -111,7 +112,7 @@ pub fn parse<'a>(s: &'a str) -> anyhow::Result<Expr> {
         errors.push(format!(
             "{}, text: \"{}\"",
             e.pp(&lexer, &cond_y::token_epp),
-            s
+            binding
         ));
     }
 
@@ -188,7 +189,7 @@ mod tests {
         }
     }
 
-      #[test]
+    #[test]
     fn test_base4() {
         let sym = r#"a="2" && b="2""#;
 
@@ -257,7 +258,7 @@ mod tests {
         };
     }
 
-     #[test]
+    #[test]
     fn test_bool() {
         // is false
         match parse("active = false") {

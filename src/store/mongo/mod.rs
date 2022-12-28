@@ -8,13 +8,13 @@ use super::{Event, Filter};
 use super::{Storage, StoreError};
 use crate::object::Object;
 
-use crate::utils::dict::compare_and_merge;
+use crate::utils::dict::{compare_and_merge, get, value_to_map};
 
 use bson::oid::ObjectId;
-use bson::{doc, Document};
+use bson::{doc, Bson, Document};
 
 use futures::{Future, TryStreamExt};
-use mongodb::options::{ChangeStreamOptions, FindOptions, FullDocumentType};
+use mongodb::options::{ChangeStreamOptions, FindOptions, FullDocumentType, UpdateOptions};
 use mongodb::{change_stream, Client};
 use std::fmt::Debug;
 
@@ -71,27 +71,6 @@ where
     type ListFuture<'a> = impl Future<Output = crate::Result<Vec<T>>>
     where
         Self: 'a;
-
-    type GetFuture<'a> = impl Future<Output =  crate::Result<T>>
-    where
-        Self: 'a;
-
-    type SaveFuture<'a> = impl Future<Output =  crate::Result<()>>
-    where
-        Self: 'a;
-
-    type UpdateFuture<'a> = impl Future<Output =  crate::Result<T>>
-        where
-            Self: 'a;
-
-    type RemoveFuture<'a>= impl Future<Output =  crate::Result<()>>
-    where
-        Self: 'a;
-
-    type StreamFuture<'a> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
-    where
-        Self: 'a;
-
     fn list<'r>(self, q: Condition<F>) -> Self::ListFuture<'r> {
         let block = async move {
             let Condition {
@@ -138,6 +117,9 @@ where
         block
     }
 
+    type GetFuture<'a> = impl Future<Output =  crate::Result<T>>
+    where
+        Self: 'a;
     fn get<'r>(self, q: Condition<F>) -> Self::GetFuture<'r> {
         let block = async move {
             let Condition {
@@ -155,6 +137,9 @@ where
         block
     }
 
+    type StreamFuture<'a> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
+    where
+        Self: 'a;
     fn watch<'r>(
         self,
         ctx: Context,
@@ -250,6 +235,10 @@ where
         }
     }
 
+    type SaveFuture<'a> = impl Future<Output =  crate::Result<()>>
+    where
+        Self: 'a;
+
     fn save<'r>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r> {
         let Condition { db, table, .. } = q;
         let c = self.collection::<T>(&db, &table);
@@ -263,7 +252,10 @@ where
         block
     }
 
-    fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
+    type ApplyFuture<'a> = impl Future<Output =  crate::Result<T>>
+        where
+            Self: 'a;
+    fn apply<'r>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r> {
         let Condition {
             db,
             table,
@@ -295,6 +287,9 @@ where
         }
     }
 
+    type RemoveFuture<'a>= impl Future<Output =  crate::Result<()>>
+    where
+        Self: 'a;
     fn delete<'r>(self, q: Condition<F>) -> Self::RemoveFuture<'r> {
         let Condition {
             db, table, filter, ..
@@ -322,6 +317,37 @@ where
             Ok(c.count_documents(filter.get(), None).await?)
         };
         block
+    }
+
+    type UpdateFuture<'a> = impl Future<Output =  crate::Result<()>>
+        where
+            Self: 'a;
+    fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
+        let Condition {
+            db,
+            table,
+            filter,
+            fields,
+            ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
+
+        async move {
+            let options = UpdateOptions::builder().upsert(true).build();
+            let mut update = doc! {};
+            let mut map = value_to_map(&t)?;
+            for field in fields {
+                update.insert(field.clone(), bson::to_bson(&get(&mut map, &field))?);
+            }
+
+            update.insert("version", Bson::Int64(current_time_sess() as i64));
+
+            let filter = filter.get();
+            let _ = c.update_one(filter, doc! {"$set":update}, options).await?;
+
+            Ok(())
+        }
     }
 }
 

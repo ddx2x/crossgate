@@ -63,7 +63,7 @@ where
 }
 
 pub trait Filter: Clone + Debug {
-    fn parse(&mut self, input: &str) -> anyhow::Result<Box<Self>>;
+    fn parse<S: ToString + ?Sized>(&mut self, input: &S) -> anyhow::Result<Box<Self>>;
 }
 
 pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
@@ -73,7 +73,12 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
 
     fn save<'r>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r>;
 
-    type UpdateFuture<'a>: Future<Output = crate::Result<T>>
+    type ApplyFuture<'a>: Future<Output = crate::Result<T>>
+    where
+        Self: 'a;
+    fn apply<'r>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r>;
+
+    type UpdateFuture<'a>: Future<Output = crate::Result<()>>
     where
         Self: 'a;
     fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r>;

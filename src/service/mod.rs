@@ -44,7 +44,11 @@ where
         self.storage.clone().get(self.intercept(q)).await
     }
 
-    pub async fn update(&self, t: T, q: Condition<F>) -> crate::Result<T> {
+    pub async fn apply(&self, t: T, q: Condition<F>) -> crate::Result<T> {
+        self.storage.clone().apply(t, self.intercept(q)).await
+    }
+
+    pub async fn update(&self, t: T, q: Condition<F>) -> crate::Result<()> {
         self.storage.clone().update(t, self.intercept(q)).await
     }
 

@@ -1,9 +1,10 @@
+use crate::utils::dict::{value_to_map, get};
 use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::compare_and_merge};
 
-use crate::store::Event;
-use bson::Document;
+use crate::store::{Event, current_time_sess};
+use bson::{Document, doc, Bson};
 use futures::{Future, TryStreamExt};
-use mongodb::options::AggregateOptions;
+use mongodb::options::{AggregateOptions, UpdateOptions};
 use mongodb::{
     change_stream::event::{ChangeStreamEvent, OperationType},
     options::{ChangeStreamOptions, FindOptions, FullDocumentType},
@@ -23,36 +24,6 @@ where
     F: Filter + GetFilter,
 {
     type ListFuture<'a,T> = impl Future<Output = crate::Result<Vec<T>>>
-    where
-        Self: 'a,
-        T: MongoDbModel;
-
-    type GetFuture<'a, T> = impl Future<Output = crate::Result<T>>
-    where
-        Self: 'a,
-        T: MongoDbModel;
-
-    type SaveFuture<'a,T> =  impl Future<Output = crate::Result<()>>
-    where
-        Self: 'a,
-        T: MongoDbModel;
-
-    type UpdateFuture<'a, T> = impl Future<Output = crate::Result<T>>
-    where
-        Self: 'a,
-        T: MongoDbModel;
-
-    type RemoveFuture<'a,T> = impl Future<Output = crate::Result<()>>
-    where
-        Self: 'a,
-        T: MongoDbModel;
-
-    type StreamFuture<'a, T> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
-    where
-        Self: 'a,
-        T: MongoDbModel+ 'static;
-
-    type CountFuture<'a, T> = impl Future<Output = crate::Result<u64>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -115,6 +86,10 @@ where
         }
     }
 
+    type SaveFuture<'a,T> =  impl Future<Output = crate::Result<()>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
     fn save_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
     where
         T: MongoDbModel,
@@ -129,7 +104,12 @@ where
         block
     }
 
-    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    type ApplyFuture<'a, T> = impl Future<Output = crate::Result<T>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn apply_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r, T>
     where
         T: MongoDbModel,
     {
@@ -164,6 +144,10 @@ where
         block
     }
 
+    type RemoveFuture<'a,T> = impl Future<Output = crate::Result<()>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
     fn delete_any_type<'r, T>(self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
     where
         T: MongoDbModel,
@@ -182,6 +166,10 @@ where
         block
     }
 
+    type GetFuture<'a, T> = impl Future<Output = crate::Result<T>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
     fn get_any_type<'r, T>(self, q: Condition<F>) -> Self::GetFuture<'r, T>
     where
         T: MongoDbModel,
@@ -201,6 +189,11 @@ where
 
         block
     }
+
+    type StreamFuture<'a, T> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
+    where
+        Self: 'a,
+        T: MongoDbModel+ 'static;
 
     fn watch_any_type<'r, T>(
         self,
@@ -301,6 +294,10 @@ where
         block
     }
 
+    type CountFuture<'a, T> = impl Future<Output = crate::Result<u64>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
     fn count<'r, T>(self, q: Condition<F>) -> Self::CountFuture<'r, T>
     where
         T: MongoDbModel,
@@ -315,6 +312,42 @@ where
         };
 
         block
+    }
+
+    type UpdateFuture<'a, T> = impl Future<Output = crate::Result<()>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let Condition {
+            db,
+            table,
+            filter,
+            fields,
+            ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
+
+        async move {
+            let options = UpdateOptions::builder().upsert(true).build();
+            let mut update = doc! {};
+            let mut map = value_to_map(&t)?;
+            for field in fields {
+                update.insert(field.clone(), bson::to_bson(&get(&mut map, &field))?);
+            }
+
+            update.insert("version", Bson::Int64(current_time_sess() as i64));
+
+            let filter = filter.get();
+            let _ = c.update_one(filter, doc! {"$set":update}, options).await?;
+
+            Ok(())
+        }
     }
 }
 

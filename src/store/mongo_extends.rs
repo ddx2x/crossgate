@@ -16,60 +16,62 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
         Self: 'a,
         T: MongoDbModel;
 
-    type GetFuture<'a, T>: Future<Output = crate::Result<T>>
+    fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
     where
-        Self: 'a,
         T: MongoDbModel;
 
     type SaveFuture<'a, T>: Future<Output = crate::Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
+    fn save_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
+    where
+        T: MongoDbModel;
 
-    type UpdateFuture<'a, T>: Future<Output = crate::Result<T>>
+    type ApplyFuture<'a, T>: Future<Output = crate::Result<T>>
     where
         Self: 'a,
+        T: MongoDbModel;
+    fn apply_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r, T>
+    where
+        T: MongoDbModel;
+
+    type UpdateFuture<'a, T>: Future<Output = crate::Result<()>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
+    where
         T: MongoDbModel;
 
     type RemoveFuture<'a, T>: Future<Output = crate::Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
+    fn delete_any_type<'r, T>(self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
+    where
+        T: MongoDbModel;
+
+    type GetFuture<'a, T>: Future<Output = crate::Result<T>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+    fn get_any_type<'r, T>(self, q: Condition<F>) -> Self::GetFuture<'r, T>
+    where
+        T: MongoDbModel;
 
     type StreamFuture<'a, T>: Future<Output = crate::Result<Receiver<Event<T>>>>
     where
         Self: 'a,
+        T: MongoDbModel + 'static;
+    fn watch_any_type<'r, T>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r, T>
+    where
         T: MongoDbModel + 'static;
 
     type CountFuture<'a, T>: Future<Output = crate::Result<u64>>
     where
         Self: 'a,
         T: MongoDbModel;
-
-    fn list_any_type<'r, T>(self, q: Condition<F>) -> Self::ListFuture<'r, T>
-    where
-        T: MongoDbModel;
-
-    fn save_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r, T>
-    where
-        T: MongoDbModel;
-
-    fn update_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r, T>
-    where
-        T: MongoDbModel;
-
-    fn delete_any_type<'r, T>(self, q: Condition<F>) -> Self::RemoveFuture<'r, T>
-    where
-        T: MongoDbModel;
-
-    fn get_any_type<'r, T>(self, q: Condition<F>) -> Self::GetFuture<'r, T>
-    where
-        T: MongoDbModel;
-
-    fn watch_any_type<'r, T>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r, T>
-    where
-        T: MongoDbModel + 'static;
-
     fn count<'r, T>(self, q: Condition<F>) -> Self::CountFuture<'r, T>
     where
         T: MongoDbModel;

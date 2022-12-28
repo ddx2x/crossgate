@@ -217,7 +217,7 @@ impl MongoFilter {
 }
 
 impl Filter for MongoFilter {
-    fn parse(&mut self, input: &str) -> anyhow::Result<Box<Self>> {
+    fn parse<S: ToString + ?Sized>(&mut self, input: &S) -> anyhow::Result<Box<Self>> {
         let expr = match parse(input) {
             Ok(s) => s,
             Err(e) => return Err(anyhow::anyhow!("{:?}", e)),
@@ -301,7 +301,7 @@ mod test {
         };
     }
 
-     #[test]
+    #[test]
     fn test_parse_strings() {
         let mut mf = MongoFilter(doc! {});
         match mf.parse(r#"a = 1.2 || b = 'abc' ||c="cde""#) {
