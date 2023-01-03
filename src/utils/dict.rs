@@ -40,6 +40,13 @@ pub fn value_to_map<'a, T: DeserializeOwned + Serialize>(
     return Ok(data.clone());
 }
 
+pub fn from_unstructed_to_type<T: DeserializeOwned + Serialize>(
+    unstructed: Unstructed,
+) -> Result<T> {
+    Ok(serde_json::from_value::<T>(serde_json::Value::Object(
+        unstructed.0,
+    ))?)
+}
 
 pub fn from_value_to_unstructed<'a, T: DeserializeOwned + Serialize>(
     value: &'a T,
