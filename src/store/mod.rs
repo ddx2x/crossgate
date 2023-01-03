@@ -17,10 +17,7 @@ use std::{
 };
 use tokio::sync::mpsc::Receiver;
 
-use crate::{
-    object::{decorate, Object},
-    utils::Unstructed,
-};
+use crate::{object::Object, utils::Unstructed};
 
 pub type Context = tokio_context::context::Context;
 
