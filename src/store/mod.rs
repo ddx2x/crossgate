@@ -17,7 +17,10 @@ use std::{
 };
 use tokio::sync::mpsc::Receiver;
 
-use crate::object::Object;
+use crate::{
+    object::{decorate, Object},
+    utils::Unstructed,
+};
 
 pub type Context = tokio_context::context::Context;
 
@@ -32,7 +35,7 @@ pub fn current_time_sess() -> u64 {
 pub enum Event<T> {
     Added(T),
     Updated(T),
-    Deleted(T),
+    Deleted(Unstructed),
     Error(String),
 }
 

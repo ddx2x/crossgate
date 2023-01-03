@@ -18,7 +18,7 @@ pub enum MongoOp {
     NotIn,
 }
 #[derive(Clone, Debug)]
-pub struct MongoFilter(pub Document);
+pub struct MongoFilter(pub Document, pub String);
 
 impl MongoFilter {
     fn gen_doc(k: &str, v: &condition::Value, op: MongoOp) -> anyhow::Result<Document> {
@@ -223,14 +223,23 @@ impl Filter for MongoFilter {
             Err(e) => return Err(anyhow::anyhow!("{:?}", e)),
         };
         self.0 = self.eval(&[expr])?.into_iter().flatten().collect();
+        self.1 = input.to_string();
 
         Ok(Box::new(self.clone()))
     }
 }
 
 impl GetFilter for MongoFilter {
-    fn get(self) -> Document {
+    fn get_doc(self) -> Document {
         self.0
+    }
+
+    fn get_src(self) -> String {
+        self.1
+    }
+
+    fn get(&self) -> (Document, String) {
+        (self.0.clone(), self.1.clone())
     }
 }
 
@@ -240,7 +249,7 @@ mod test {
     #[test]
     fn test_parse_cond() {
         let sym = "a=1 && b=2 || c=1 && b=2";
-        let mut mf = MongoFilter(doc! {});
+        let mut mf = MongoFilter(doc! {}, sym.into());
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -250,7 +259,7 @@ mod test {
     #[test]
     fn test_parse_cond2() {
         let sym = "a=1 && (b=2||c=1) && b=2";
-        let mut mf = MongoFilter(doc! {});
+        let mut mf = MongoFilter(doc! {}, sym.to_string());
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -260,7 +269,7 @@ mod test {
     #[test]
     fn test_parse_cond3() {
         let sym = r#"a=1 && (b="2" || c=1 && b='2')"#;
-        let mut mf = MongoFilter(doc! {});
+        let mut mf = MongoFilter(doc! {}, sym.to_string());
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -269,7 +278,7 @@ mod test {
 
     #[test]
     fn test_parse_in_notin() {
-        let mut mf = MongoFilter(doc! {});
+        let mut mf = MongoFilter(doc! {}, "".to_string());
         match mf.parse("a ~ (1,2,3,4)") {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -283,7 +292,7 @@ mod test {
 
     #[test]
     fn test_parse_like() {
-        let mut mf = MongoFilter(doc! {});
+        let mut mf = MongoFilter(doc! {}, "".to_string());
         match mf.parse("a ! '^1.2'") {
             // prefix 1.2
             Ok(c) => println!("{:?}", c),
@@ -293,7 +302,7 @@ mod test {
 
     #[test]
     fn test_parse_f64() {
-        let mut mf = MongoFilter(doc! {});
+        let mut mf = MongoFilter(doc! {}, "".to_string());
         match mf.parse("a = 1.2") {
             // prefix 1.2
             Ok(c) => println!("{:?}", c),
@@ -303,7 +312,7 @@ mod test {
 
     #[test]
     fn test_parse_strings() {
-        let mut mf = MongoFilter(doc! {});
+        let mut mf = MongoFilter(doc! {}, "".to_string());
         match mf.parse(r#"a = 1.2 || b = 'abc' ||c="cde""#) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),

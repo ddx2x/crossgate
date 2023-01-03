@@ -1,4 +1,5 @@
 mod filter;
+use condition::parse;
 pub use filter::MongoFilter;
 use mongodb::change_stream::event::ChangeStreamEvent;
 mod extends;
@@ -8,7 +9,9 @@ use super::{Event, Filter};
 use super::{Storage, StoreError};
 use crate::object::Object;
 
-use crate::utils::dict::{compare_and_merge, get, value_to_map};
+use crate::store::mongo::matchs::matchs;
+use crate::utils::dict::{compare_and_merge, from_value_to_unstructed, get, value_to_map};
+use crate::utils::{matchs, Unstructed};
 
 use bson::oid::ObjectId;
 use bson::{doc, Bson, Document};
@@ -24,7 +27,7 @@ use serde::Serialize;
 use tokio::sync::mpsc::Receiver;
 
 pub fn new_mongo_condition() -> Condition<MongoFilter> {
-    Condition::new(MongoFilter(doc! {}))
+    Condition::new(MongoFilter(doc! {}, "".to_string()))
 }
 
 fn uuid() -> String {
@@ -32,7 +35,9 @@ fn uuid() -> String {
 }
 
 pub trait GetFilter {
-    fn get(self) -> Document;
+    fn get_doc(self) -> Document;
+    fn get_src(self) -> String;
+    fn get(&self) -> (Document, String);
 }
 
 #[derive(Debug, Clone)]
@@ -104,7 +109,7 @@ where
                 opt.sort = Some(doc);
             }
 
-            let mut cursor = c.find(filter.get(), Some(opt)).await?;
+            let mut cursor = c.find(filter.get_doc(), Some(opt)).await?;
             let mut items = vec![];
 
             while let Some(item) = cursor.try_next().await? {
@@ -127,7 +132,7 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            if let Some(value) = c.find_one(filter.get(), None).await? {
+            if let Some(value) = c.find_one(filter.get_doc(), None).await? {
                 return Ok(value);
             }
 
@@ -153,14 +158,24 @@ where
         async move {
             let (tx, rx) = tokio::sync::mpsc::channel(4);
 
+            let (filter_doc, filter_src) = filter.get();
             let collection = client.database(&db).collection::<T>(&table);
-            let mut cursor = collection.find(filter.get(), None).await?;
+            let mut cursor = collection.find(filter_doc.clone(), None).await?;
 
             let options = ChangeStreamOptions::builder()
                 .full_document(Some(FullDocumentType::UpdateLookup))
                 .build();
 
             let mut stream = collection.watch(None, options).await?;
+
+            let _matchs = move |item: &T| -> bool {
+                if let Ok(v) = from_value_to_unstructed(item) {
+                    if let Ok(r) = matchs(&mut vec![v], parse(&filter_src).unwrap()) {
+                        return r.len() == 1;
+                    }
+                }
+                return false;
+            };
 
             tokio::spawn(async move {
                 let loop_block = async {
@@ -170,7 +185,6 @@ where
                             break;
                         }
                     }
-
                     while let Ok(Some(evt)) = stream.try_next().await {
                         let ChangeStreamEvent::<T> {
                             operation_type,
@@ -184,8 +198,14 @@ where
                                 if full_document.is_none() {
                                     break;
                                 }
-                                if let Err(e) = tx.send(Event::Added(full_document.unwrap())).await
-                                {
+
+                                let item = full_document.unwrap();
+
+                                if !_matchs(&item) {
+                                    continue;
+                                }
+
+                                if let Err(e) = tx.send(Event::Added(item)).await {
                                     log::error!("{:?}", e.to_string());
                                     break;
                                 }
@@ -195,9 +215,12 @@ where
                                 if full_document.is_none() {
                                     break;
                                 }
-                                if let Err(e) =
-                                    tx.send(Event::Updated(full_document.unwrap())).await
-                                {
+                                let item = full_document.unwrap();
+
+                                if !_matchs(&item) {
+                                    continue;
+                                }
+                                if let Err(e) = tx.send(Event::Updated(item)).await {
                                     log::error!("{:?}", e.to_string());
                                     break;
                                 }
@@ -206,7 +229,9 @@ where
                                 if document_key.is_none() {
                                     break;
                                 }
-                                match mongodb::bson::from_document::<T>(document_key.unwrap()) {
+                                match mongodb::bson::from_document::<Unstructed>(
+                                    document_key.unwrap(),
+                                ) {
                                     Ok(doc) => {
                                         if let Err(e) = tx.send(Event::Deleted(doc)).await {
                                             log::error!("{:?}", e.to_string());
@@ -268,7 +293,7 @@ where
         let mut t = t;
 
         async move {
-            let filter = filter.get();
+            let filter = filter.get_doc();
             let old = c.find_one(filter.clone(), None).await?;
 
             if old.is_none() {
@@ -298,7 +323,7 @@ where
         let c = self.collection::<T>(&db, &table);
 
         async move {
-            let _ = c.delete_many(filter.get(), None).await?;
+            let _ = c.delete_many(filter.get_doc(), None).await?;
             Ok(())
         }
     }
@@ -314,7 +339,7 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            Ok(c.count_documents(filter.get(), None).await?)
+            Ok(c.count_documents(filter.get_doc(), None).await?)
         };
         block
     }
@@ -343,7 +368,7 @@ where
 
             update.insert("version", Bson::Int64(current_time_sess() as i64));
 
-            let filter = filter.get();
+            let filter = filter.get_doc();
             let _ = c.update_one(filter, doc! {"$set":update}, options).await?;
 
             Ok(())

@@ -5,6 +5,8 @@ use serde_json::{Map, Value};
 
 use crate::Result;
 
+use super::Unstructed;
+
 pub fn compare_and_merge<'a, T>(old: &mut T, new: &mut T, fields: Vec<String>) -> Result<T>
 where
     T: DeserializeOwned + Serialize,
@@ -33,9 +35,21 @@ pub fn value_to_map<'a, T: DeserializeOwned + Serialize>(
     let mut binding = serde_json::to_value::<&T>(value)?;
     let data = binding
         .as_object_mut()
-        .context("obj_value to json data is none")?;
+        .context("obj value to json data is none")?;
 
     return Ok(data.clone());
+}
+
+
+pub fn from_value_to_unstructed<'a, T: DeserializeOwned + Serialize>(
+    value: &'a T,
+) -> Result<Unstructed> {
+    let mut binding = serde_json::to_value::<&T>(value)?;
+    let data = binding
+        .as_object_mut()
+        .context("value to unstruncted is none")?;
+
+    return Ok(Unstructed(data.clone()));
 }
 
 pub fn compare_and_merge_value(
