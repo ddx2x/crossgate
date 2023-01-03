@@ -145,15 +145,11 @@ where
     type StreamFuture<'a> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
     where
         Self: 'a;
-    fn watch<'r>(
-        self,
-        ctx: Context,
-        db: String,
-        table: String,
-        q: Condition<F>,
-    ) -> Self::StreamFuture<'r> {
+    fn watch<'r>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r> {
         let client = self.client.clone();
-        let Condition { filter, .. } = q;
+        let Condition {
+            filter, db, table, ..
+        } = q;
 
         async move {
             let (tx, rx) = tokio::sync::mpsc::channel(4);

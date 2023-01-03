@@ -104,8 +104,6 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     fn watch<'r>(
         self,
         ctx: Context,
-        db: String,
-        table: String,
         q: Condition<F>,
     ) -> Self::StreamFuture<'r>;
 

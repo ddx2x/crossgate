@@ -65,9 +65,6 @@ where
     }
 
     pub async fn watch(&self, ctx: Context, q: Condition<F>) -> crate::Result<Receiver<Event<T>>> {
-        self.storage
-            .clone()
-            .watch(ctx, self.schema.to_string(), self.table.to_string(), q)
-            .await
+        self.storage.clone().watch(ctx, self.intercept(q)).await
     }
 }
