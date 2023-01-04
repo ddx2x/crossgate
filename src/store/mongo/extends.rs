@@ -1,8 +1,10 @@
+use std::fmt::Debug;
+
+use crate::store::mongo::matchs::matchs;
+use crate::store::{current_time_sess, Event};
 use crate::utils::dict::{from_value_to_unstructed, get, value_to_map};
 use crate::utils::Unstructed;
 use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::compare_and_merge};
-use crate::store::mongo::matchs::matchs;
-use crate::store::{current_time_sess, Event};
 use bson::{doc, Bson, Document};
 use condition::parse;
 use futures::{Future, TryStreamExt};
@@ -225,6 +227,9 @@ where
             let mut stream = collection.watch(None, options).await?;
 
             let _matchs = move |item: &T| -> bool {
+                if filter_src.eq("") {
+                    return true;
+                }
                 if let Ok(v) = from_value_to_unstructed(item) {
                     if let Ok(r) = matchs(&mut vec![v], parse(&filter_src).unwrap()) {
                         return r.len() == 1;

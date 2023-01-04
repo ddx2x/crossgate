@@ -165,6 +165,9 @@ where
             let mut stream = collection.watch(None, options).await?;
 
             let _matchs = move |item: &T| -> bool {
+                if filter_src.eq("") {
+                    return true;
+                }
                 if let Ok(v) = from_value_to_unstructed(item) {
                     if let Ok(r) = matchs(&mut vec![v], parse(&filter_src).unwrap()) {
                         return r.len() == 1;
