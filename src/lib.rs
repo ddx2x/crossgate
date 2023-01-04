@@ -5,6 +5,9 @@ pub mod object;
 pub mod service;
 pub mod utils;
 
+// export parse
+pub use condition::parse;
+
 #[macro_use]
 pub mod store;
 
