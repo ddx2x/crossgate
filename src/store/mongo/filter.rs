@@ -318,4 +318,19 @@ mod test {
             Err(e) => panic!("{}", e),
         };
     }
+
+    #[test]
+    fn test_parse_in_strings() {
+        let mut mf = MongoFilter(doc! {}, "".to_string());
+        match mf.parse(r#"a ~ ("1","2")"#) {
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        };
+
+        let mut mf = MongoFilter(doc! {}, "".to_string());
+        match mf.parse(r#"a ~ ('1','2')"#) {
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        };
+    }
 }

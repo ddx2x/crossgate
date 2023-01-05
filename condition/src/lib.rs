@@ -244,6 +244,19 @@ mod tests {
     }
 
     #[test]
+    fn test_in_string() {
+        match parse("id ~ ('1','2','3','4')") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+
+        match parse(r#"id ~ ("1","2")"#) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
     fn test_like_notlike() {
         // like
         match parse("full_id ! '^1.'") {

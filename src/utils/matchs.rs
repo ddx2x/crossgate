@@ -435,4 +435,28 @@ mod tests {
             Err(e) => panic!("simulation data error: {}", e),
         }
     }
+
+    #[test]
+    fn test_in_string() {
+        let datas = vec![
+            from_str(r#"{"name":"bobo","active":false}"#).unwrap(),
+            from_str(r#"{"name":"bill","active":false}"#).unwrap(),
+            from_str(r#"{"name":"alex","active":true}"#).unwrap(),
+        ];
+
+        // where name in ("bobo","bill")
+        match matchs(
+            &mut datas.clone(),
+            parse(r#"name ~ ("bobo","bill")"#).unwrap(),
+        ) {
+            Ok(r) => {
+                if r.len() != 2 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("bool data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
 }
