@@ -70,14 +70,14 @@ NumberCompare -> Expr:
   | Ident 'IN'  IntArray { Expr::In    { span: $span, field: $1, value: $3 } }
   | Ident 'NIN' IntArray { Expr::NotIn { span: $span, field: $1, value: $3 } }
   ;
+Text -> String:
+  'STRING' { remove_apostrophe($lexer.span_str($1.as_ref().unwrap().span()).to_string()) } 
+  ;
 Ident -> String:
-  'IDENT' { String::from($lexer.span_str($1.as_ref().unwrap().span())) } 
+  'IDENT' { $lexer.span_str($1.as_ref().unwrap().span()).to_string() } 
   ;
 Number -> Number:
   'NUMBER' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<Number>().unwrap() }
-  ;
-Text -> String:
-  'STRING' { remove_apostrophe(String::from($lexer.span_str($1.as_ref().unwrap().span()))) } 
   ;
 Bool -> bool:
   'BOOL' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<bool>().unwrap() }
@@ -111,7 +111,7 @@ TextArray -> Value:
             .trim_end_matches(")")
             .split(",");
       for item in items {
-          rs.push(Value::Text(item.parse::<String>().unwrap()));
+          rs.push(Value::Text(remove_apostrophe(item.parse::<String>().unwrap())));
       }
       Value::List(rs)
   }

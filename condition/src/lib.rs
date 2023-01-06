@@ -127,15 +127,15 @@ pub fn parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
 }
 
 pub(crate) fn remove_apostrophe(s: String) -> String {
-    if s.starts_with('\'') {
-        s.trim_end_matches("'")
+    if s.starts_with(r#"'"#) {
+        s.trim_end_matches(r#"'"#)
             .to_string()
             .trim_start_matches("'")
             .to_string()
     } else {
-        s.trim_end_matches("\"")
+        s.trim_end_matches(r#"""#)
             .to_string()
-            .trim_start_matches("\"")
+            .trim_start_matches(r#"""#)
             .to_string()
     }
 }
