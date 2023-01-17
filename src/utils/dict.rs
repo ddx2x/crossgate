@@ -74,37 +74,48 @@ pub fn compare_and_merge_value(
     return false;
 }
 
-fn shift(path: &String) -> (String, String) {
-    let data: Vec<&str> = path.split(".").collect();
-    if data.len() < 1 {
-        return ("".to_string(), "".to_string());
-    }
-
-    if data.len() < 2 {
-        return (data[0].to_string(), "".to_string());
-    }
-
-    let new_data = &data[1..data.len()].join(".");
-    return (data[0].to_string(), new_data.to_string());
-}
-
-pub(crate) fn get(data: &mut Map<String, Value>, path: &String) -> Value {
+pub fn get(data: &mut Map<String, Value>, path: &str) -> Value {
     let (head, remain) = shift(path);
-    if let Some(value) = data.get_mut(&head) {
-        if remain != "" {
-            // 获取的field不存在时返回null
-            if let Some(value) = value.as_object_mut() {
-                return get(value, &remain);
-            }
-            return Value::Null;
-        };
 
-        return value.clone();
+    if !data.contains_key(&head) {
+        return Value::Null;
     }
-    return Value::Null;
+
+    if remain == "" {
+        if let Some(value) = data.get_mut(&head) {
+            return value.clone();
+        };
+    }
+
+    if let Some(value) = data.get_mut(&head) {
+        if let Some(data) = value.as_object_mut() {
+            return get(data, &remain.to_string());
+        }
+    }
+
+    Value::Null
 }
 
-pub(crate) fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -> Option<Value> {
+pub fn remove(data: &mut Map<String, Value>, path: &str) {
+    let (head, remain) = shift(path);
+
+    if !data.contains_key(&head) {
+        return;
+    }
+
+    if remain == "" {
+        data.remove(&head);
+        return;
+    }
+
+    if let Some(value) = data.get_mut(&head) {
+        if let Some(data) = value.as_object_mut() {
+            remove(data, &remain.to_string())
+        }
+    }
+}
+
+pub fn set(data: &mut Map<String, Value>, path: &str, value: &Value) -> Option<Value> {
     let (head, remain) = shift(path);
 
     if remain == "" {
@@ -113,10 +124,9 @@ pub(crate) fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -
         return Some(().into());
     }
 
-    // 获取的field可能为空，也可能不是map
     if let Some(field_value) = data.get_mut(&head) {
         if let Some(path_value) = field_value.as_object_mut() {
-            return set(path_value, &remain, value);
+            return set(path_value, &remain.to_string(), value);
         }
     }
 
@@ -124,12 +134,28 @@ pub(crate) fn set(data: &mut Map<String, Value>, path: &String, value: &Value) -
         head.to_string(),
         serde_json::Value::Object(serde_json::Map::new()),
     );
-    return set(data.get_mut(&head)?.as_object_mut()?, &remain, value);
+
+    return set(
+        data.get_mut(&head)?.as_object_mut()?,
+        &remain.to_string(),
+        value,
+    );
+}
+
+fn shift(path: &str) -> (String, String) {
+    let list: Vec<&str> = path.split(".").collect();
+    match list.len() {
+        1 => return (list[0].to_string(), "".to_string()),
+        _ => return (list[0].to_string(), list[1..list.len()].join(".")),
+    }
 }
 
 #[cfg(test)]
 mod test {
     use serde::{Deserialize, Serialize};
+    use serde_json::Value;
+
+    use crate::utils::dict::remove;
 
     use super::{get, set, value_to_map};
 
@@ -170,34 +196,46 @@ mod test {
 
     #[test]
     fn test_get() {
-        let p = serde_json::from_str::<Root>(DATA).unwrap();
-        let p_map = &mut value_to_map::<Root>(&p).unwrap();
+        let root = serde_json::from_str::<Root>(DATA).unwrap();
+        let map = &mut value_to_map::<Root>(&root).unwrap();
 
-        let value = get(p_map, &"test.aa.aa.cc".to_string());
-        assert_eq!(value, serde_json::Value::Null);
+        assert_eq!(
+            get(map, &"test.aa.aa.cc".to_string()),
+            serde_json::Value::Null
+        );
 
-        let value = get(p_map, &"test.cc.dd".to_string());
+        assert_eq!(get(map, &"test.aa".to_string()), "bb",);
 
-        assert_eq!(value, "cc");
+        assert_eq!(get(map, &"test.cc.dd".to_string()), "cc",);
     }
 
     #[test]
     fn test_set() {
-        let p = serde_json::from_str::<Root>(DATA).unwrap();
-        let p_map = &mut value_to_map::<Root>(&p).unwrap();
-        let value = serde_json::to_value(&"new_test_data".to_string()).unwrap();
+        let root = serde_json::from_str::<Root>(DATA).unwrap();
+        let map = &mut value_to_map::<Root>(&root).unwrap();
 
-        set(p_map, &"test.aa.aa.cc".to_string(), &value).unwrap();
-        let value = get(p_map, &"test.aa.aa.cc".to_string());
-        assert_eq!(value, "new_test_data");
+        set(
+            map,
+            &"test.aa.aa.cc".to_string(),
+            &serde_json::to_value(&"new_test_data".to_string()).unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(get(map, &"test.aa.aa.cc".to_string()), "new_test_data");
     }
 
     #[test]
 
-    fn test_split_once() {
-        let src = "a.b.c";
+    fn test_remove() {
+        let root = serde_json::from_str::<Root>(DATA).unwrap();
+        let map = &mut value_to_map::<Root>(&root).unwrap();
 
-        let opt = src.split_once(".");
-        assert_eq!(opt.is_some(), true);
+        remove(map, &"age".to_string());
+
+        assert_eq!(get(map, &"age".to_string()), Value::Null);
+
+        remove(map, &"test.aa".to_string());
+
+        assert_eq!(get(map, &"test.aa".to_string()), Value::Null);
     }
 }

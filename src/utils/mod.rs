@@ -16,6 +16,10 @@ impl Unstructed {
         dict::get(&mut self.0, &path.to_string())
     }
 
+    pub fn remove(&mut self, path: &str) {
+        dict::remove(&mut self.0, path)
+    }
+
     pub fn unmarshal<'a, T: DeserializeOwned>(&self) -> anyhow::Result<T> {
         Ok(serde_json::from_value::<T>(serde_json::Value::Object(
             self.0.clone(),
