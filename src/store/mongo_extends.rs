@@ -1,6 +1,7 @@
 use crate::utils;
 
 use super::{Condition, Context, Event, Filter};
+use crate::store::Result;
 use bson::Document;
 use futures::Future;
 use serde::de::DeserializeOwned;
@@ -11,7 +12,7 @@ pub trait MongoDbModel: Sync + Send + Unpin + serde::Serialize + DeserializeOwne
 impl MongoDbModel for utils::Unstructed {}
 
 pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
-    type ListFuture<'a, T>: Future<Output = crate::Result<Vec<T>>>
+    type ListFuture<'a, T>: Future<Output = Result<Vec<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -20,7 +21,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type SaveFuture<'a, T>: Future<Output = crate::Result<()>>
+    type SaveFuture<'a, T>: Future<Output = Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -28,7 +29,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type ApplyFuture<'a, T>: Future<Output = crate::Result<T>>
+    type ApplyFuture<'a, T>: Future<Output = Result<T>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -36,7 +37,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type UpdateFuture<'a, T>: Future<Output = crate::Result<()>>
+    type UpdateFuture<'a, T>: Future<Output = Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -44,7 +45,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type RemoveFuture<'a, T>: Future<Output = crate::Result<()>>
+    type RemoveFuture<'a, T>: Future<Output = Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -52,7 +53,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type GetFuture<'a, T>: Future<Output = crate::Result<T>>
+    type GetFuture<'a, T>: Future<Output = Result<T>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -60,7 +61,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type StreamFuture<'a, T>: Future<Output = crate::Result<Receiver<Event<T>>>>
+    type StreamFuture<'a, T>: Future<Output = Result<Receiver<Event<T>>>>
     where
         Self: 'a,
         T: MongoDbModel + 'static;
@@ -68,7 +69,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel + 'static;
 
-    type CountFuture<'a, T>: Future<Output = crate::Result<u64>>
+    type CountFuture<'a, T>: Future<Output = Result<u64>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -78,7 +79,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
 }
 
 pub trait MongoStorageAggregationExtends: Sync + Send + Clone + 'static {
-    type AggregationListFuture<'a, T>: Future<Output = crate::Result<Vec<T>>>
+    type AggregationListFuture<'a, T>: Future<Output = Result<Vec<T>>>
     where
         Self: 'a,
         T: MongoDbModel;

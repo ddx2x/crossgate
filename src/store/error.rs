@@ -8,4 +8,6 @@ pub enum StoreError {
     DuplicateKey(String),
     #[error("store connection abnormal info `{0}`")]
     ConnectionError(String),
+    #[error("other error `{0}`")]
+    OtherError(String),
 }

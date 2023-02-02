@@ -16,7 +16,7 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::store::{
     mongo_extends::{MongoDbModel, MongoStorageExtends},
-    Condition, Filter, StoreError,
+    Condition, Filter, Result, StoreError,
 };
 
 use super::{GetFilter, MongoStore};
@@ -25,7 +25,7 @@ impl<F> MongoStorageExtends<F> for MongoStore
 where
     F: Filter + GetFilter,
 {
-    type ListFuture<'a,T> = impl Future<Output = crate::Result<Vec<T>>>
+    type ListFuture<'a,T> = impl Future<Output = Result<Vec<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -77,10 +77,18 @@ where
                 opt.projection = Some(doc);
             }
 
-            let mut cursor = c.find(filter.get_doc(), Some(opt)).await?;
+            let mut cursor = c
+                .find(filter.get_doc(), Some(opt))
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             let mut items = vec![];
-            while let Some(item) = cursor.try_next().await? {
+
+            while let Some(item) = cursor
+                .try_next()
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?
+            {
                 items.push(item);
             }
 
@@ -88,7 +96,7 @@ where
         }
     }
 
-    type SaveFuture<'a,T> =  impl Future<Output = crate::Result<()>>
+    type SaveFuture<'a,T> =  impl Future<Output = Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -99,14 +107,17 @@ where
         let Condition { db, table, .. } = q;
         let c = self.collection::<T>(&db, &table);
         let block = async move {
-            let _ = c.insert_one(t, None).await?;
+            let _ = c
+                .insert_one(t, None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
             Ok(())
         };
 
         block
     }
 
-    type ApplyFuture<'a, T> = impl Future<Output = crate::Result<T>>
+    type ApplyFuture<'a, T> = impl Future<Output = Result<T>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -128,15 +139,24 @@ where
 
         let block = async move {
             let filter = filter.get_doc();
-            let old = c.find_one(filter.clone(), None).await?;
+            let old = c
+                .find_one(filter.clone(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             if old.is_none() {
-                let _ = c.insert_one(&t, None).await?;
+                let _ = c
+                    .insert_one(&t, None)
+                    .await
+                    .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(t);
             }
 
             if let Ok(update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
-                let _ = c.replace_one(filter, &update, None).await?;
+                let _ = c
+                    .replace_one(filter, &update, None)
+                    .await
+                    .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(update);
             }
 
@@ -146,7 +166,7 @@ where
         block
     }
 
-    type RemoveFuture<'a,T> = impl Future<Output = crate::Result<()>>
+    type RemoveFuture<'a,T> = impl Future<Output = Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -161,14 +181,17 @@ where
         let c = self.collection::<T>(&db, &table);
 
         let block = async move {
-            let _ = c.delete_many(filter.get_doc(), None).await?;
+            let _ = c
+                .delete_many(filter.get_doc(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
             Ok(())
         };
 
         block
     }
 
-    type GetFuture<'a, T> = impl Future<Output = crate::Result<T>>
+    type GetFuture<'a, T> = impl Future<Output = Result<T>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -182,7 +205,11 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            if let Some(value) = c.find_one(filter.get_doc(), None).await? {
+            if let Some(value) = c
+                .find_one(filter.get_doc(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?
+            {
                 return Ok(value);
             }
 
@@ -192,7 +219,7 @@ where
         block
     }
 
-    type StreamFuture<'a, T> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
+    type StreamFuture<'a, T> = impl Future<Output = Result<Receiver<Event<T>>>>
     where
         Self: 'a,
         T: MongoDbModel+ 'static;
@@ -216,13 +243,19 @@ where
             let (filter_doc, filter_src) = filter.get();
 
             let collection = client.database(&db).collection::<T>(&table);
-            let mut cursor = collection.find(filter_doc, None).await?;
+            let mut cursor = collection
+                .find(filter_doc, None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             let options = ChangeStreamOptions::builder()
                 .full_document(Some(FullDocumentType::UpdateLookup))
                 .build();
 
-            let mut stream = collection.watch(None, options).await?;
+            let mut stream = collection
+                .watch(None, options)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             let _matchs = move |item: &T| -> bool {
                 if filter_src.eq("") {
@@ -317,7 +350,7 @@ where
         block
     }
 
-    type CountFuture<'a, T> = impl Future<Output = crate::Result<u64>>
+    type CountFuture<'a, T> = impl Future<Output = Result<u64>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -331,13 +364,15 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            Ok(c.count_documents(filter.get_doc(), None).await?)
+            Ok(c.count_documents(filter.get_doc(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
         };
 
         block
     }
 
-    type UpdateFuture<'a, T> = impl Future<Output = crate::Result<()>>
+    type UpdateFuture<'a, T> = impl Future<Output = Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -359,15 +394,22 @@ where
         async move {
             let options = UpdateOptions::builder().upsert(true).build();
             let mut update = doc! {};
-            let mut map = value_to_map(&t)?;
+            let mut map = value_to_map(&t).map_err(|e| StoreError::OtherError(e.to_string()))?;
             for field in fields {
-                update.insert(field.clone(), bson::to_bson(&get(&mut map, &field))?);
+                update.insert(
+                    field.clone(),
+                    bson::to_bson(&get(&mut map, &field))
+                        .map_err(|e| StoreError::ConnectionError(e.to_string()))?,
+                );
             }
 
             update.insert("version", Bson::Int64(current_time_sess() as i64));
 
             let filter = filter.get_doc();
-            let _ = c.update_one(filter, doc! {"$set":update}, options).await?;
+            let _ = c
+                .update_one(filter, doc! {"$set":update}, options)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             Ok(())
         }
@@ -375,7 +417,7 @@ where
 }
 
 impl MongoStorageAggregationExtends for MongoStore {
-    type AggregationListFuture<'a, T> =  impl Future<Output = crate::Result<Vec<T>>>
+    type AggregationListFuture<'a, T> =  impl Future<Output = Result<Vec<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -403,10 +445,17 @@ impl MongoStorageAggregationExtends for MongoStore {
                 .database(&db)
                 .collection::<T>(&table)
                 .aggregate(q, options)
-                .await?;
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
-            while let Some(item) = cursor.try_next().await? {
-                rs.push(bson::from_document(item)?);
+            while let Some(item) = cursor
+                .try_next()
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?
+            {
+                rs.push(
+                    bson::from_document(item).map_err(|e| StoreError::OtherError(e.to_string()))?,
+                );
             }
 
             Ok(rs)

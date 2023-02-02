@@ -20,6 +20,7 @@ use tokio::sync::mpsc::Receiver;
 use crate::{object::Object, utils::Unstructed};
 
 pub type Context = tokio_context::context::Context;
+pub type Result<T> = anyhow::Result<T, StoreError>;
 
 pub fn current_time_sess() -> u64 {
     SystemTime::now()
@@ -67,47 +68,43 @@ pub trait Filter: Clone + Debug {
 }
 
 pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
-    type SaveFuture<'a>: Future<Output = crate::Result<()>>
+    type SaveFuture<'a>: Future<Output = Result<()>>
     where
         Self: 'a;
 
     fn save<'r>(self, t: T, q: Condition<F>) -> Self::SaveFuture<'r>;
 
-    type ApplyFuture<'a>: Future<Output = crate::Result<T>>
+    type ApplyFuture<'a>: Future<Output = Result<T>>
     where
         Self: 'a;
     fn apply<'r>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r>;
 
-    type UpdateFuture<'a>: Future<Output = crate::Result<()>>
+    type UpdateFuture<'a>: Future<Output = Result<()>>
     where
         Self: 'a;
     fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r>;
 
-    type RemoveFuture<'a>: Future<Output = crate::Result<()>>
+    type RemoveFuture<'a>: Future<Output = Result<()>>
     where
         Self: 'a;
     fn delete<'r>(self, q: Condition<F>) -> Self::RemoveFuture<'r>;
 
-    type ListFuture<'a>: Future<Output = crate::Result<Vec<T>>>
+    type ListFuture<'a>: Future<Output = Result<Vec<T>>>
     where
         Self: 'a;
     fn list<'r>(self, q: Condition<F>) -> Self::ListFuture<'r>;
 
-    type GetFuture<'a>: Future<Output = crate::Result<T>>
+    type GetFuture<'a>: Future<Output = Result<T>>
     where
         Self: 'a;
     fn get<'r>(self, q: Condition<F>) -> Self::GetFuture<'r>;
 
-    type StreamFuture<'a>: Future<Output = crate::Result<Receiver<Event<T>>>>
+    type StreamFuture<'a>: Future<Output = Result<Receiver<Event<T>>>>
     where
         Self: 'a;
-    fn watch<'r>(
-        self,
-        ctx: Context,
-        q: Condition<F>,
-    ) -> Self::StreamFuture<'r>;
+    fn watch<'r>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r>;
 
-    type CountFuture<'a>: Future<Output = crate::Result<u64>>
+    type CountFuture<'a>: Future<Output = Result<u64>>
     where
         Self: 'a;
     fn count<'r>(self, q: Condition<F>) -> Self::CountFuture<'r>;

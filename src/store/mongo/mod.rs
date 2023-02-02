@@ -10,6 +10,7 @@ use super::{Storage, StoreError};
 use crate::object::Object;
 
 use crate::store::mongo::matchs::matchs;
+use crate::store::Result;
 use crate::utils::dict::{compare_and_merge, from_value_to_unstructed, get, value_to_map};
 use crate::utils::{matchs, Unstructed};
 
@@ -46,7 +47,7 @@ pub struct MongoStore {
 }
 
 impl MongoStore {
-    pub async fn new(uri: &str) -> Result<Self, StoreError> {
+    pub async fn new(uri: &str) -> Result<Self> {
         match mongodb::options::ClientOptions::parse_with_resolver_config(
             &uri,
             mongodb::options::ResolverConfig::cloudflare(),
@@ -73,7 +74,7 @@ where
     T: Object + DeserializeOwned + Serialize + Unpin + Debug,
     F: Filter + GetFilter,
 {
-    type ListFuture<'a> = impl Future<Output = crate::Result<Vec<T>>>
+    type ListFuture<'a> = impl Future<Output = Result<Vec<T>>>
     where
         Self: 'a;
     fn list<'r>(self, q: Condition<F>) -> Self::ListFuture<'r> {
@@ -109,10 +110,18 @@ where
                 opt.sort = Some(doc);
             }
 
-            let mut cursor = c.find(filter.get_doc(), Some(opt)).await?;
+            let mut cursor = c
+                .find(filter.get_doc(), Some(opt))
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
+
             let mut items = vec![];
 
-            while let Some(item) = cursor.try_next().await? {
+            while let Some(item) = cursor
+                .try_next()
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?
+            {
                 items.push(item);
             }
 
@@ -122,7 +131,7 @@ where
         block
     }
 
-    type GetFuture<'a> = impl Future<Output =  crate::Result<T>>
+    type GetFuture<'a> = impl Future<Output =  Result<T>>
     where
         Self: 'a;
     fn get<'r>(self, q: Condition<F>) -> Self::GetFuture<'r> {
@@ -132,7 +141,11 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            if let Some(value) = c.find_one(filter.get_doc(), None).await? {
+            if let Some(value) = c
+                .find_one(filter.get_doc(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?
+            {
                 return Ok(value);
             }
 
@@ -142,7 +155,7 @@ where
         block
     }
 
-    type StreamFuture<'a> = impl Future<Output = crate::Result<Receiver<Event<T>>>>
+    type StreamFuture<'a> = impl Future<Output = Result<Receiver<Event<T>>>>
     where
         Self: 'a;
     fn watch<'r>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r> {
@@ -156,13 +169,19 @@ where
 
             let (filter_doc, filter_src) = filter.get();
             let collection = client.database(&db).collection::<T>(&table);
-            let mut cursor = collection.find(filter_doc.clone(), None).await?;
+            let mut cursor = collection
+                .find(filter_doc.clone(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             let options = ChangeStreamOptions::builder()
                 .full_document(Some(FullDocumentType::UpdateLookup))
                 .build();
 
-            let mut stream = collection.watch(None, options).await?;
+            let mut stream = collection
+                .watch(None, options)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             let _matchs = move |item: &T| -> bool {
                 if filter_src.eq("") {
@@ -259,7 +278,7 @@ where
         }
     }
 
-    type SaveFuture<'a> = impl Future<Output =  crate::Result<()>>
+    type SaveFuture<'a> = impl Future<Output =  Result<()>>
     where
         Self: 'a;
 
@@ -269,14 +288,17 @@ where
         let block = async move {
             let mut t = t;
             t.uid().is_empty().then(|| t.set_uid(&uuid()));
-            let _ = c.insert_one(t, None).await?;
+            let _ = c
+                .insert_one(t, None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
             Ok(())
         };
 
         block
     }
 
-    type ApplyFuture<'a> = impl Future<Output =  crate::Result<T>>
+    type ApplyFuture<'a> = impl Future<Output =  Result<T>>
         where
             Self: 'a;
     fn apply<'r>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r> {
@@ -293,17 +315,26 @@ where
 
         async move {
             let filter = filter.get_doc();
-            let old = c.find_one(filter.clone(), None).await?;
+            let old = c
+                .find_one(filter.clone(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             if old.is_none() {
-                let _ = c.insert_one(&t, None).await?;
+                let _ = c
+                    .insert_one(&t, None)
+                    .await
+                    .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(t);
             }
 
             if let Ok(mut update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
                 update.set_version(current_time_sess());
 
-                let _ = c.replace_one(filter, &update, None).await?;
+                let _ = c
+                    .replace_one(filter, &update, None)
+                    .await
+                    .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(update);
             }
 
@@ -311,7 +342,7 @@ where
         }
     }
 
-    type RemoveFuture<'a>= impl Future<Output =  crate::Result<()>>
+    type RemoveFuture<'a>= impl Future<Output =  Result<()>>
     where
         Self: 'a;
     fn delete<'r>(self, q: Condition<F>) -> Self::RemoveFuture<'r> {
@@ -322,12 +353,15 @@ where
         let c = self.collection::<T>(&db, &table);
 
         async move {
-            let _ = c.delete_many(filter.get_doc(), None).await?;
+            let _ = c
+                .delete_many(filter.get_doc(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
             Ok(())
         }
     }
 
-    type CountFuture<'a>= impl Future<Output = crate::Result<u64>>
+    type CountFuture<'a>= impl Future<Output = Result<u64>>
     where
         Self: 'a;
 
@@ -338,12 +372,14 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            Ok(c.count_documents(filter.get_doc(), None).await?)
+            Ok(c.count_documents(filter.get_doc(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
         };
         block
     }
 
-    type UpdateFuture<'a> = impl Future<Output =  crate::Result<()>>
+    type UpdateFuture<'a> = impl Future<Output =  Result<()>>
         where
             Self: 'a;
     fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
@@ -360,15 +396,22 @@ where
         async move {
             let options = UpdateOptions::builder().upsert(true).build();
             let mut update = doc! {};
-            let mut map = value_to_map(&t)?;
+            let mut map = value_to_map(&t).map_err(|e| StoreError::OtherError(e.to_string()))?;
             for field in fields {
-                update.insert(field.clone(), bson::to_bson(&get(&mut map, &field))?);
+                update.insert(
+                    field.clone(),
+                    bson::to_bson(&get(&mut map, &field))
+                        .map_err(|e| StoreError::OtherError(e.to_string()))?,
+                );
             }
 
             update.insert("version", Bson::Int64(current_time_sess() as i64));
 
             let filter = filter.get_doc();
-            let _ = c.update_one(filter, doc! {"$set":update}, options).await?;
+            let _ = c
+                .update_one(filter, doc! {"$set":update}, options)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             Ok(())
         }
