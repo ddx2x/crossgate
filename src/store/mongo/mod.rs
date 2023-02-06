@@ -394,7 +394,7 @@ where
         let c = self.collection::<T>(&db, &table);
 
         async move {
-            let options = UpdateOptions::builder().upsert(true).build();
+            let options = UpdateOptions::builder().upsert(false).build();
             let mut update = doc! {};
             let mut map = value_to_map(&t).map_err(|e| StoreError::OtherError(e.to_string()))?;
             for field in fields {
