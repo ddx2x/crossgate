@@ -91,7 +91,7 @@ impl MongoFilter {
         // like
         if op == "$regex" {
             if let condition::Value::Text(s) = v {
-                doc.insert(k, doc! {op:format!("/{}/",s.as_str())});
+                doc.insert(k, doc! {op:format!("{}",s.as_str())});
             } else {
                 return Err(anyhow::anyhow!("in op just only support text"));
             }

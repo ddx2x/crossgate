@@ -23,7 +23,7 @@ pub struct Condition<T: Filter> {
     pub(crate) size: usize,
     pub(crate) sorts: Vec<Sort>,
     pub(crate) fields: Vec<String>,
-    pub(crate) filter: T,
+    pub filter: T,
     pub(crate) pageable: bool,
 }
 

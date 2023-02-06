@@ -74,7 +74,7 @@ Text -> String:
   'STRING' { remove_apostrophe($lexer.span_str($1.as_ref().unwrap().span()).to_string()) } 
   ;
 Ident -> String:
-  'IDENT' { $lexer.span_str($1.as_ref().unwrap().span()).to_string() } 
+  'IDENT' { remove_apostrophe($lexer.span_str($1.as_ref().unwrap().span()).to_string()) } 
   ;
 Number -> Number:
   'NUMBER' { $lexer.span_str($1.as_ref().unwrap().span()).parse::<Number>().unwrap() }
