@@ -79,7 +79,7 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
         Self: 'a;
     fn apply<'r>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r>;
 
-    type UpdateFuture<'a>: Future<Output = Result<()>>
+    type UpdateFuture<'a>: Future<Output = Result<Option<T>>>
     where
         Self: 'a;
     fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r>;

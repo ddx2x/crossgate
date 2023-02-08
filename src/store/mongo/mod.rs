@@ -379,7 +379,7 @@ where
         block
     }
 
-    type UpdateFuture<'a> = impl Future<Output =  Result<()>>
+    type UpdateFuture<'a> = impl Future<Output =  Result<Option<T>>>
         where
             Self: 'a;
     fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
@@ -409,11 +409,15 @@ where
 
             let filter = filter.get_doc();
             let _ = c
-                .update_one(filter, doc! {"$set":update}, options)
+                .update_one(filter.clone(), doc! {"$set":update}, options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
-            Ok(())
+            let rs = c
+                .find_one(filter, None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
+            Ok(rs)
         }
     }
 }

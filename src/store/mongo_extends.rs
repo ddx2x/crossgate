@@ -37,7 +37,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type UpdateFuture<'a, T>: Future<Output = Result<()>>
+    type UpdateFuture<'a, T>: Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
