@@ -68,7 +68,7 @@ pub trait Filter: Clone + Debug {
 }
 
 pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
-    type SaveFuture<'a>: Future<Output = Result<()>>
+    type SaveFuture<'a>: Future<Output = Result<Option<T>>>
     where
         Self: 'a;
 

@@ -1,16 +1,17 @@
 use crate::store::mongo::matchs::matchs;
 use crate::store::{current_time_sess, Event};
-use crate::utils::dict::{from_value_to_unstructed, get, value_to_map};
+use crate::utils::dict::{from_unstructed_to_type, from_value_to_unstructed, get, value_to_map};
 use crate::utils::Unstructed;
 use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::compare_and_merge};
-use bson::{doc, Bson, Document};
-use condition::parse;
+use bson::{doc, Bson, Document, Uuid};
+use condition::{parse, Value};
 use futures::{Future, TryStreamExt};
 use mongodb::options::{AggregateOptions, UpdateOptions};
 use mongodb::{
     change_stream::event::{ChangeStreamEvent, OperationType},
     options::{ChangeStreamOptions, FindOptions, FullDocumentType},
 };
+use serde_json::Value as SerdeValue;
 
 use tokio::sync::mpsc::Receiver;
 
@@ -19,7 +20,7 @@ use crate::store::{
     Condition, Filter, Result, StoreError,
 };
 
-use super::{GetFilter, MongoStore};
+use super::{GetFilter, MongoStore, uuid};
 
 impl<F> MongoStorageExtends<F> for MongoStore
 where
@@ -96,7 +97,7 @@ where
         }
     }
 
-    type SaveFuture<'a,T> =  impl Future<Output = Result<()>>
+    type SaveFuture<'a,T> =  impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -107,11 +108,24 @@ where
         let Condition { db, table, .. } = q;
         let c = self.collection::<T>(&db, &table);
         let block = async move {
-            let _ = c
+            let mut value =
+                from_value_to_unstructed(&t).map_err(|e| StoreError::OtherError(e.to_string()))?;
+            if let SerdeValue::Null = value.get("_id") {
+                value.set("_id", &SerdeValue::String(uuid()));
+            }
+            let t = from_unstructed_to_type::<T>(value)
+                .map_err(|e| StoreError::OtherError(e.to_string()))?;
+
+            let insert_one_result = c
                 .insert_one(t, None)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
-            Ok(())
+
+            Ok(
+                c.find_one(doc! {"_id":insert_one_result.inserted_id.to_string()}, None)
+                    .await
+                    .map_err(|e| StoreError::ConnectionError(e.to_string()))?,
+            )
         };
 
         block

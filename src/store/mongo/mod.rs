@@ -278,7 +278,7 @@ where
         }
     }
 
-    type SaveFuture<'a> = impl Future<Output =  Result<()>>
+    type SaveFuture<'a> = impl Future<Output =  Result<Option<T>>>
     where
         Self: 'a;
 
@@ -287,12 +287,19 @@ where
         let c = self.collection::<T>(&db, &table);
         let block = async move {
             let mut t = t;
+
             t.uid().is_empty().then(|| t.set_uid(&uuid()));
-            let _ = c
+
+            let insert_one_result = c
                 .insert_one(t, None)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
-            Ok(())
+
+            Ok(
+                c.find_one(doc! {"_id":insert_one_result.inserted_id.to_string()}, None)
+                    .await
+                    .map_err(|e| StoreError::ConnectionError(e.to_string()))?,
+            )
         };
 
         block
