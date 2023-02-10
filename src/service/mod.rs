@@ -72,16 +72,16 @@ where
         }
     }
 
-    pub async fn update(&self, t: T, q: Condition<F>) -> crate::Result<()> {
+    pub async fn update(&self, t: T, q: Condition<F>) -> crate::Result<Option<T>> {
         match self.storage.clone().update(t, self.intercept(q)).await {
-            Ok(_) => Ok(()),
+            Ok(t) => Ok(t),
             Err(e) => return Err(anyhow::anyhow!("{}", e.to_string())),
         }
     }
 
-    pub async fn save(&self, t: T, q: Condition<F>) -> crate::Result<()> {
+    pub async fn save(&self, t: T, q: Condition<F>) -> crate::Result<Option<T>> {
         match self.storage.clone().save(t, self.intercept(q)).await {
-            Ok(_) => Ok(()),
+            Ok(t) => Ok(t),
             Err(e) => return Err(anyhow::anyhow!("{}", e.to_string())),
         }
     }
