@@ -296,7 +296,7 @@ where
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             Ok(
-                c.find_one(doc! {"_id":insert_one_result.inserted_id.to_string()}, None)
+                c.find_one(doc! {"_id":insert_one_result.inserted_id.as_str()}, None)
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?,
             )
