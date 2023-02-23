@@ -7,7 +7,7 @@ use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::c
 use bson::{doc, Bson, Document, Uuid};
 use condition::{parse, Value};
 use futures::{Future, TryStreamExt};
-use mongodb::options::{AggregateOptions, UpdateOptions};
+use mongodb::options::{AggregateOptions, FindOneOptions, UpdateOptions};
 use mongodb::{
     change_stream::event::{ChangeStreamEvent, OperationType},
     options::{ChangeStreamOptions, FindOptions, FullDocumentType},
@@ -21,7 +21,7 @@ use crate::store::{
     Condition, Filter, Result, StoreError,
 };
 
-use super::{uuid, GetFilter, MongoFilter, MongoStore};
+use super::{uuid, GetFilter, MongoStore};
 
 impl<F> MongoStorageExtends<F> for MongoStore
 where
@@ -216,12 +216,26 @@ where
     {
         let block = async move {
             let Condition {
-                db, table, filter, ..
+                db,
+                table,
+                fields,
+                filter,
+                ..
             } = q;
             let c = self.collection::<T>(&db, &table);
 
+            let mut opt = FindOneOptions::builder().build();
+
+            if fields.len() > 0 {
+                let mut doc = Document::new();
+                for s in fields {
+                    doc.insert(s.clone(), 1);
+                }
+                opt.projection = Some(doc);
+            }
+
             if let Some(value) = c
-                .find_one(filter.get_doc(), None)
+                .find_one(filter.get_doc(), Some(opt))
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?
             {
