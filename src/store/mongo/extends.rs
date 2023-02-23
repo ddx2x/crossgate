@@ -1,4 +1,5 @@
 use crate::store::mongo::matchs::matchs;
+use crate::store::mongo_extends::MongoStorageOpExtends;
 use crate::store::{current_time_sess, Event};
 use crate::utils::dict::{from_unstructed_to_type, from_value_to_unstructed, get, value_to_map};
 use crate::utils::Unstructed;
@@ -20,7 +21,7 @@ use crate::store::{
     Condition, Filter, Result, StoreError,
 };
 
-use super::{uuid, GetFilter, MongoStore};
+use super::{uuid, GetFilter, MongoFilter, MongoStore};
 
 impl<F> MongoStorageExtends<F> for MongoStore
 where
@@ -475,6 +476,73 @@ impl MongoStorageAggregationExtends for MongoStore {
             }
 
             Ok(rs)
+        };
+
+        block
+    }
+}
+
+impl<F> MongoStorageOpExtends<F> for MongoStore
+where
+    F: Filter + GetFilter,
+{
+    type IncrFuture<'a, T> = impl Future<Output = Result<Option<T>>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn incr<'r, T>(self, kv_pairs: &'r [(&'r str, u32)], q: Condition<F>) -> Self::IncrFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let Condition {
+            db, table, filter, ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
+
+        let options = UpdateOptions::builder().upsert(false).build();
+        let mut update = doc! {};
+        update.insert("version", Bson::Int64(current_time_sess() as i64));
+
+        let mut incr = doc! {};
+
+        for (key, val) in kv_pairs {
+            incr.insert(key.to_string(), val);
+        }
+
+        let block = async move {
+            let filter = filter.get_doc();
+
+            let _ = c
+                .update_one(filter.clone(), doc! {"$inc":incr,"$set":update}, options)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
+
+            Ok(c.find_one(filter, None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
+        };
+
+        block
+    }
+
+    type BatchRemoveFuture<'a> = impl Future<Output = Result<u64>>
+    where
+        Self: 'a;
+
+    fn batch_remove<'r>(self, q: Condition<F>) -> Self::BatchRemoveFuture<'r> {
+        let Condition {
+            db, table, filter, ..
+        } = q;
+
+        let c = self.collection::<Unstructed>(&db, &table);
+
+        let block = async move {
+            Ok(c.delete_many(filter.get_doc(), None)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?
+                .deleted_count)
         };
 
         block

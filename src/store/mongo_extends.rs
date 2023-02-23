@@ -93,3 +93,20 @@ pub trait MongoStorageAggregationExtends: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 }
+
+pub trait MongoStorageOpExtends<F: Filter>: Sync + Send + Clone + 'static {
+    type IncrFuture<'a, T>: Future<Output = Result<Option<T>>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn incr<'r, T>(self, kv_pairs: &'r [(&str, u32)], q: Condition<F>) -> Self::IncrFuture<'r, T>
+    where
+        T: MongoDbModel;
+
+    type BatchRemoveFuture<'a>: Future<Output = Result<u64>>
+    where
+        Self: 'a;
+
+    fn batch_remove<'r>(self, q: Condition<F>) -> Self::BatchRemoveFuture<'r>;
+}

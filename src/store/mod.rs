@@ -2,7 +2,9 @@ mod mongo;
 pub use mongo::*;
 
 mod mongo_extends;
-pub use mongo_extends::{MongoDbModel, MongoStorageAggregationExtends, MongoStorageExtends};
+pub use mongo_extends::{
+    MongoDbModel, MongoStorageAggregationExtends, MongoStorageExtends, MongoStorageOpExtends,
+};
 
 mod condition;
 pub use self::condition::{Condition, Sort, SortDirection};
