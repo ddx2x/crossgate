@@ -491,7 +491,7 @@ where
         Self: 'a,
         T: MongoDbModel;
 
-    fn incr<'r, T>(self, kv_pairs: &'r [(&'r str, u32)], q: Condition<F>) -> Self::IncrFuture<'r, T>
+    fn incr<'r, T>(self, kv_pairs: &'r [(&'r str, i64)], q: Condition<F>) -> Self::IncrFuture<'r, T>
     where
         T: MongoDbModel,
     {
