@@ -1,4 +1,5 @@
 #![feature(type_alias_impl_trait)]
+#![feature(core_intrinsics)]
 
 // tools lib
 pub mod object;

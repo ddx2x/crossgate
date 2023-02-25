@@ -3,6 +3,7 @@ use serde_json::{Map, Value};
 
 pub mod dict;
 pub mod matchs;
+pub mod value;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Unstructed(Map<String, Value>);
