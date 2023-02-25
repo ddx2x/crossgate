@@ -11,7 +11,7 @@ where
     }
 }
 
-pub fn map_get<T: DeserializeOwned>(map: Map<String, Value>, key: &str, default: T) -> T {
+pub fn map_get<T: DeserializeOwned>(map: &Map<String, Value>, key: &str, default: T) -> T {
     if let Some(value) = map.get(key) {
         return get(value.clone(), default);
     }
@@ -39,10 +39,16 @@ mod tests {
     fn test_map_get_string() {
         let mut map = Map::new();
         map.insert("name".to_owned(), "abc".into());
+        map.insert("xx".to_owned(), "bb".into());
 
         assert_eq!(
             "abc".to_string(),
-            map_get::<String>(map, "name", "".to_string())
+            map_get::<String>(&map, "name", "".to_string())
+        );
+
+        assert_eq!(
+            "bb".to_string(),
+            map_get::<String>(&map, "xx", "".to_string())
         );
     }
 }
