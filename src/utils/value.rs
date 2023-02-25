@@ -20,4 +20,9 @@ mod tests {
     fn test_string() {
         assert_eq!("abc".to_string(), get::<String>(json!("abc"), "".into()));
     }
+
+    #[test]
+    fn test_u64() {
+        assert_eq!(123, get::<u64>(json!(123), 0));
+    }
 }
