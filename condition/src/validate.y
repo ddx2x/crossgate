@@ -1,5 +1,5 @@
 %start Validate
-%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY'
+%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY' 'IS' 'IS_NOT' 'LEN'
 %left '||'
 %right '&&'
 
@@ -44,6 +44,15 @@ TextCompare -> Validate:
   | Ident '!=' Text { Validate::Ne { span: $span, field: $1, value: Value::String($3) } }
   | Ident 'IN'  TextArray { Validate::In { span: $span, field: $1, value: $3 } }
   | Ident 'NIN' TextArray { Validate::NotIn { span: $span, field: $1, value: $3 } }
+  | Ident 'IS'  NUMBER_TYPE { Validate::IsNumber { span: $span, field: $1, value: $3 } }
+  | Ident 'IS'  STRING_TYPE { Validate::IsString { span: $span, field: $1, value: $3 } }
+  | LEN '(' Ident ')' '=' Number { Validate::LenField { span: $span, field: $3, compare: EQ, value: $6 } }
+  | LEN '(' Ident ')' '!=' Number { Validate::LenField { span: $span, field: $3, compare: NE, value: $6 } }
+  | LEN '(' Ident ')' '<>' Number { Validate::LenField { span: $span, field: $3, compare: NE, value: $6 } }
+  | LEN '(' Ident ')' '>' Number { Validate::LenField { span: $span, field: $3, compare: GT, value: $6 } }
+  | LEN '(' Ident ')' '<' Number { Validate::LenField { span: $span, field: $3, compare: LT, value: $6 } }
+  | LEN '(' Ident ')' '>=' Number { Validate::LenField { span: $span, field: $3, compare: GTE, value: $6 } }
+  | LEN '(' Ident ')' '<=' Number { Validate::LenField { span: $span, field: $3, compare: LTE, value: $6 } }
   ;
 
 NumberCompare -> Validate:
@@ -57,6 +66,7 @@ NumberCompare -> Validate:
   | Ident 'IN'  IntArray { Validate::In    { span: $span, field: $1, value: $3 } }
   | Ident 'NIN' IntArray { Validate::NotIn { span: $span, field: $1, value: $3 } }
   ;
+
 Text -> String:
   'STRING' { remove_apostrophe($lexer.span_str($1.as_ref().unwrap().span()).to_string()) } 
   ;
@@ -83,7 +93,7 @@ IntArray -> Value:
       for item in items {
           rs.push(Value::Number(item.parse::<Number>().unwrap()));
       }
-      Value::Array(vec![])
+      Value::Array(rs)
   }
   ;
 TextArray -> Value:
@@ -100,12 +110,18 @@ TextArray -> Value:
       for item in items {
           rs.push(Value::String(remove_apostrophe(item.parse::<String>().unwrap())));
       }
-      Value::Array(vec![])
+      Value::Array(rs)
   }
   ;
+NUMBER_TYPE -> bool:
+    'NUMBER' { true } ;
+
+STRING_TYPE-> bool:
+    'STRING' { true } ;
 
 %%
 
 // use lrpar::Span;
 use serde_json::{Value,Number};
+use crate::Compare::{EQ,NE,GT,LT,GTE,LTE};
 use crate::{Validate,remove_apostrophe};

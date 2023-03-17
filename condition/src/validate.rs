@@ -2,10 +2,20 @@
 
 use lrlex::lrlex_mod;
 use lrpar::{lrpar_mod, Span};
-use serde_json::Value;
+use serde_json::{Value, Number};
 
 lrlex_mod!("validate.l");
 lrpar_mod!("validate.y");
+
+#[derive(Clone, Debug)]
+pub enum Compare {
+    EQ,
+    NE,
+    GT,
+    GTE,
+    LT,
+    LTE,
+}
 
 #[derive(Clone, Debug)]
 pub enum Validate {
@@ -72,19 +82,19 @@ pub enum Validate {
     IsNumber {
         span: Span,
         field: String,
-        value: Value,
+        value: bool,
     },
     IsString {
         span: Span,
         field: String,
-        value: Value,
+        value: bool,
     },
     LenField {
         // len(name) > 1, first this field must be string
         span: Span,
         field: String,
-        expr: Box<Validate>,
-        value: Value,
+        compare: Compare,
+        value: Number,
     },
     Join {
         from: String,

@@ -8,7 +8,8 @@
 
 ^                 "IS"
 ^^                "IS_NOT"
-len('(.*?)'|"(.*?)")           "LEN"
+len               "LEN"
+real              "REAL"
 
 ~                  "IN"
 ~~                 "NIN"
