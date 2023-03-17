@@ -21,16 +21,16 @@ lrpar_mod!("./validate.y");
 //   3.添加 like/not like 解析
 
 #[derive(Clone, Debug)]
-pub enum SerdeExpr {
+pub enum ValidateExpr {
     And {
         span: Span,
-        lhs: Box<SerdeExpr>,
-        rhs: Box<SerdeExpr>,
+        lhs: Box<ValidateExpr>,
+        rhs: Box<ValidateExpr>,
     },
     Or {
         span: Span,
-        lhs: Box<SerdeExpr>,
-        rhs: Box<SerdeExpr>,
+        lhs: Box<ValidateExpr>,
+        rhs: Box<ValidateExpr>,
     },
     Eq {
         span: Span,
@@ -81,6 +81,29 @@ pub enum SerdeExpr {
         span: Span,
         field: String,
         value: SerdeValue,
+    },
+    IsNumber {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    IsString {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    LenField {
+        // len(name) > 1, first this field must be string
+        span: Span,
+        field: String,
+        expr: Box<ValidateExpr>,
+        value: SerdeValue,
+    },
+    Join {
+        from: String,
+        expr: ValidateExpr, // just use compare expr
+        field: String,
+        value: Value,
     },
 }
 
@@ -194,7 +217,7 @@ pub fn parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
     }
 }
 
-pub fn serde_parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<SerdeExpr> {
+pub fn parse_validate<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<ValidateExpr> {
     let lexerdef = validate_l::lexerdef();
 
     let binding = s.to_string();
@@ -236,7 +259,7 @@ pub(crate) fn remove_apostrophe(s: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::parse;
-    use super::serde_parse;
+    use super::parse_validate;
 
     #[test]
     fn test_base() {
@@ -259,7 +282,7 @@ mod tests {
     fn test_serde() {
         let sym = "a=1 && ( b=1 ) && c=1";
 
-        match serde_parse(sym) {
+        match parse_validate(sym) {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
         }
