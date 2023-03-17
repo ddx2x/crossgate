@@ -3,9 +3,13 @@
 use lrlex::lrlex_mod;
 use lrpar::{lrpar_mod, Span};
 use serde_json::Number;
+use serde_json::Value as SerdeValue;
 
 lrlex_mod!("cond.l");
+lrlex_mod!("./validate.l");
+
 lrpar_mod!("cond.y");
+lrpar_mod!("./validate.y");
 
 // a=1
 // a=1 && b=1
@@ -15,6 +19,70 @@ lrpar_mod!("cond.y");
 //   1.添加(1,2,3) array 解析
 //   2.添加 in、notin 解析
 //   3.添加 like/not like 解析
+
+#[derive(Clone, Debug)]
+pub enum SerdeExpr {
+    And {
+        span: Span,
+        lhs: Box<SerdeExpr>,
+        rhs: Box<SerdeExpr>,
+    },
+    Or {
+        span: Span,
+        lhs: Box<SerdeExpr>,
+        rhs: Box<SerdeExpr>,
+    },
+    Eq {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    Ne {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    Gt {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    Gte {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    Lt {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    Lte {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    In {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    NotIn {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    IsNull {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+    IsNotNull {
+        span: Span,
+        field: String,
+        value: SerdeValue,
+    },
+}
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -126,6 +194,31 @@ pub fn parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
     }
 }
 
+pub fn serde_parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<SerdeExpr> {
+    let lexerdef = validate_l::lexerdef();
+
+    let binding = s.to_string();
+    let lexer = lexerdef.lexer(&binding);
+    let (res, errs) = validate_y::parse(&lexer);
+
+    let mut errors = vec![];
+    for e in errs {
+        errors.push(format!(
+            "{}, text: \"{}\"",
+            e.pp(&lexer, &validate_y::token_epp),
+            binding
+        ));
+    }
+    if errors.len() > 0 {
+        return Err(anyhow::anyhow!("{}", errors.concat()));
+    }
+
+    match res {
+        Some(expr) => Ok(expr),
+        None => return Err(anyhow::anyhow!("{}", "Unable to evaluate expression.")),
+    }
+}
+
 pub(crate) fn remove_apostrophe(s: String) -> String {
     if s.starts_with(r#"'"#) {
         s.trim_end_matches(r#"'"#)
@@ -143,6 +236,7 @@ pub(crate) fn remove_apostrophe(s: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::parse;
+    use super::serde_parse;
 
     #[test]
     fn test_base() {
@@ -156,6 +250,16 @@ mod tests {
         let sym = "a.x.x=1";
 
         match parse(sym) {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
+    fn test_serde() {
+        let sym = "a=1 && ( b=1 ) && c=1";
+
+        match serde_parse(sym) {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
         }
