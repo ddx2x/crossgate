@@ -23,8 +23,18 @@ pub fn validate_match<'a>(
         Expr::IsNotNull { span, field, value } => todo!(),
         Expr::IsNumber { span, field, value } => todo!(),
         Expr::IsString { span, field, value } => todo!(),
-        Expr::LenField { span, field, expr, value } => todo!(),
-        Expr::Join { from, expr, field, value } => todo!(),
+        Expr::Join {
+            from,
+            expr,
+            field,
+            value,
+        } => todo!(),
+        Expr::LenField {
+            span,
+            field,
+            compare,
+            value,
+        } => todo!(),
     }
     false
 }
