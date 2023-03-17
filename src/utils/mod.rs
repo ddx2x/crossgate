@@ -7,6 +7,7 @@ use self::value::map_get;
 pub mod dict;
 pub mod matchs;
 pub mod value;
+pub mod validate;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Unstructed(Map<String, Value>);
