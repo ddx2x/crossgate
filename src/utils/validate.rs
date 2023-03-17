@@ -1,4 +1,4 @@
-use condition::ValidateExpr as Expr;
+use condition::Validate as Expr;
 use serde_json::Value;
 
 use super::Unstructed;
