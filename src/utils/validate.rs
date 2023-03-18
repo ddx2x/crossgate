@@ -3,35 +3,17 @@ use condition::Validate as Expr;
 use super::Unstructed;
 
 pub fn validate_match<'a>(
-    src: Option<&'a mut Unstructed>,
-    tag: &'a mut Unstructed,
+    src: &Option<&'a mut Unstructed>, // 表示当前已经持久化的集合
+    tag: &'a mut Unstructed,          // 表示当前待更新的集合
     expr: Expr,
 ) -> bool {
-    match expr.clone() {
-        Expr::And { span: _, lhs, rhs } => match src {
-            Some(src) => {
-                let l_result = validate_match(Some(src), tag, *lhs);
-                let r_result = validate_match(Some(src), tag, *rhs);
-                return l_result && r_result;
-            }
-            None => {
-                let l_result = validate_match(None, tag, *lhs);
-                let r_result = validate_match(None, tag, *rhs);
-                return l_result && r_result;
-            }
-        },
-        Expr::Or { span: _, lhs, rhs } => match src {
-            Some(src) => {
-                let l_result = validate_match(Some(src), tag, *lhs);
-                let r_result = validate_match(Some(src), tag, *rhs);
-                return l_result || r_result;
-            }
-            None => {
-                let l_result = validate_match(None, tag, *lhs);
-                let r_result = validate_match(None, tag, *rhs);
-                return l_result || r_result;
-            }
-        },
+    match expr {
+        Expr::And { span: _, lhs, rhs } => {
+            return validate_match(src, tag, *lhs) && validate_match(src, tag, *rhs)
+        }
+        Expr::Or { span: _, lhs, rhs } => {
+            return validate_match(src, tag, *lhs) || validate_match(src, tag, *rhs)
+        }
         Expr::Eq {
             span: _,
             field,
@@ -138,10 +120,51 @@ pub fn validate_match<'a>(
             field,
             value,
         } => {
-            if let Some(src) = src {
-                return validate_match(None, src, *expr) == tag.get(field.as_str());
+            if src.is_none() {
+                return false;
             }
-            return tag.get(field.as_str()) == value;
+
+            // 例如 src.a = b 时，需要从 src 中找到 b 字段对应的值， 这里的表达式只能够是标准的比较
+            match expr {
+                // Expr::And { span: _, lhs, rhs } => todo!(),
+                // Expr::Or { span: _, lhs, rhs } => todo!(),
+                // Expr::Eq {
+                //     span: _,
+                //     field,
+                //     value,
+                // } => todo!(),
+                // Expr::Ne {
+                //     span: _,
+                //     field,
+                //     value,
+                // } => todo!(),
+                // Expr::Gt {
+                //     span: _,
+                //     field,
+                //     value,
+                // } => todo!(),
+                // Expr::Gte {
+                //     span: _,
+                //     field,
+                //     value,
+                // } => todo!(),
+                // Expr::Lt {
+                //     span: _,
+                //     field,
+                //     value,
+                // } => todo!(),
+                // Expr::Lte {
+                //     span: _,
+                //     field,
+                //     value,
+                // } => todo!(),
+                // Expr::In {
+                //     span: _,
+                //     field,
+                //     value,
+                // } => todo!(),
+                _ => return false,
+            }
         }
         Expr::LenField {
             span: _,
@@ -200,4 +223,24 @@ pub fn validate_match<'a>(
         },
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_number() {}
+
+    #[test]
+    fn test_is_string() {}
+
+    #[test]
+    fn test_is_null() {}
+
+    #[test]
+    fn test_is_not_null() {}
+
+    #[test]
+    fn test_join() {}
 }
