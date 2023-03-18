@@ -121,7 +121,7 @@ pub fn validate_match<'a>(
             span: _,
             field,
             value: _,
-        } => return tag.get(field.as_str()).is_null(),
+        } => return !tag.get(field.as_str()).is_null(),
         Expr::IsNumber {
             span: _,
             field,
