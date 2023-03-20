@@ -3,7 +3,7 @@ use condition::Validate as Expr;
 use serde_json::Value;
 
 // 需要传入target，因为可能出现 a=b 的情况
-fn condition_value_to_serde_value<'a>(value: condition::Value, tag: &'a mut Unstructed) -> Value {
+fn condition_value_to_serde_value<'a>(value: condition::Value, tag: &'a Unstructed) -> Value {
     match value {
         condition::Value::Text(str) => serde_json::Value::String(str),
         condition::Value::Number(num) => serde_json::Value::Number(num),
@@ -21,23 +21,17 @@ fn condition_value_to_serde_value<'a>(value: condition::Value, tag: &'a mut Unst
 }
 
 pub fn validate_match<'a>(
-    src: Option<&'a mut Unstructed>, // 表示当前已经持久化的集合
-    tag: &'a mut Unstructed,         // 表示当前待更新的集合
+    src: Option<&'a Unstructed>, // 表示当前已经持久化的集合
+    tag: &'a Unstructed,         // 表示当前待更新的集合
     expr: Expr,
 ) -> bool {
     match expr {
-        Expr::And { span: _, lhs, rhs } => match src {
-            Some(src) => {
-                return validate_match(Some(src), tag, *lhs) && validate_match(Some(src), tag, *rhs)
-            }
-            None => return validate_match(None, tag, *lhs) && validate_match(None, tag, *rhs),
-        },
-        Expr::Or { span: _, lhs, rhs } => match src {
-            Some(src) => {
-                return validate_match(Some(src), tag, *lhs) || validate_match(Some(src), tag, *rhs)
-            }
-            None => return validate_match(None, tag, *lhs) || validate_match(None, tag, *rhs),
-        },
+        Expr::And { span: _, lhs, rhs } => {
+            return validate_match(src, tag, *lhs) && validate_match(src, tag, *rhs)
+        }
+        Expr::Or { span: _, lhs, rhs } => {
+            return validate_match(src, tag, *lhs) || validate_match(src, tag, *rhs)
+        }
         Expr::Eq {
             span: _,
             field,
@@ -177,12 +171,7 @@ pub fn validate_match<'a>(
             field,
             value: _,
         } => return tag.get(field.as_str()).is_string(),
-        Expr::Join {
-            from: _,
-            expr,
-            field: _,
-            value: _,
-        } => {
+        Expr::Join { span: _, expr } => {
             if src.is_none() {
                 return false;
             }
@@ -385,8 +374,35 @@ mod tests {
     use lrpar::Span;
 
     #[test]
+    fn test_basic() {
+        let src = from_str(r#"{"a":123,"b":"312"}"#).unwrap();
+        let span = Span::new(1, 2);
+
+        assert_eq!(
+            validate_match(
+                None,
+                &src,
+                Expr::And {
+                    span,
+                    lhs: Box::new(Expr::IsNumber {
+                        field: "a".to_string(),
+                        value: true,
+                        span,
+                    }),
+                    rhs: Box::new(Expr::IsString {
+                        field: "b".to_string(),
+                        value: true,
+                        span,
+                    }),
+                },
+            ),
+            true
+        );
+    }
+
+    #[test]
     fn test_is_number() {
-        let unstructed = &mut from_str(r#"{"a":123,"b":312}"#).unwrap();
+        let unstructed = &from_str(r#"{"a":123,"b":312}"#).unwrap();
         let span = Span::new(1, 2);
         let res = validate_match(
             None,
@@ -402,7 +418,7 @@ mod tests {
 
     #[test]
     fn test_is_string() {
-        let unstructed = &mut from_str(r#"{"a":"123","b":312}"#).unwrap();
+        let unstructed = &from_str(r#"{"a":"123","b":312}"#).unwrap();
         let span = Span::new(1, 2);
         let res = validate_match(
             None,
@@ -418,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_is_null() {
-        let unstructed = &mut from_str(r#"{"a":null,"b":312}"#).unwrap();
+        let unstructed = &from_str(r#"{"a":null,"b":312}"#).unwrap();
         let span = Span::new(1, 2);
         let res = validate_match(
             None,
@@ -434,7 +450,7 @@ mod tests {
 
     #[test]
     fn test_is_not_null() {
-        let unstructed = &mut from_str(r#"{"a":null,"b":312}"#).unwrap();
+        let unstructed = &from_str(r#"{"a":null,"b":312}"#).unwrap();
         let span = Span::new(1, 2);
         let res = validate_match(
             None,
@@ -450,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_gte() {
-        let unstructed = &mut from_str(r#"{"a":null,"b":312}"#).unwrap();
+        let unstructed = &from_str(r#"{"a":null,"b":312}"#).unwrap();
         let span = Span::new(1, 2);
         let res = validate_match(
             None,
@@ -466,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_lte() {
-        let unstructed = &mut from_str(r#"{"a":null,"b":312}"#).unwrap();
+        let unstructed = &from_str(r#"{"a":null,"b":312}"#).unwrap();
         let span = Span::new(1, 2);
         let res = validate_match(
             None,
@@ -501,61 +517,109 @@ mod tests {
 
     #[test]
     fn test_not_in() {
-        let unstructed = &mut from_str(r#"{"a":"c","b":312}"#).unwrap();
+        let unstructed = from_str(r#"{"a":"c","b":312}"#).unwrap();
         let span = Span::new(1, 2);
-        let res = validate_match(
-            None,
-            unstructed,
-            Expr::NotIn {
-                field: "a".to_string(),
-                value: condition::Value::List(vec![
-                    condition::Value::Text("a".to_string()),
-                    condition::Value::Text("b".to_string()),
-                ]),
-                span: span,
-            },
+
+        assert!(
+            validate_match(
+                None,
+                &unstructed,
+                Expr::NotIn {
+                    field: "a".to_string(),
+                    value: condition::Value::List(vec![
+                        condition::Value::Text("a".to_string()),
+                        condition::Value::Text("b".to_string()),
+                    ]),
+                    span: span,
+                },
+            ) == true
         );
-        assert!(res == true);
+
+        assert!(
+            validate_match(
+                None,
+                &unstructed,
+                Expr::NotIn {
+                    field: "a".to_string(),
+                    value: condition::Value::List(vec![condition::Value::Text("c".to_string()),]),
+                    span: span,
+                },
+            ) == false
+        );
     }
 
     #[test]
     fn test_len() {
-        let unstructed = &mut from_str(r#"{"a":[1,2,3],"b":312}"#).unwrap();
+        let unstructed = &mut from_str(r#"{"a":[1,2,3],"b":"312"}"#).unwrap();
         let span = Span::new(1, 2);
-        let res = validate_match(
-            None,
-            unstructed,
-            Expr::LenField {
-                field: "a".to_string(),
-                value: serde_json::Number::from(10),
-                compare: Compare::LT,
-                span: span,
-            },
+
+        assert!(
+            validate_match(
+                None,
+                unstructed,
+                Expr::LenField {
+                    field: "a".to_string(),
+                    value: serde_json::Number::from(10),
+                    compare: Compare::LT,
+                    span,
+                },
+            ) == true
         );
-        assert!(res == true);
+
+        //测试不通过
+        assert!(
+            validate_match(
+                None,
+                unstructed,
+                Expr::LenField {
+                    field: "b".to_string(),
+                    value: serde_json::Number::from(10),
+                    compare: Compare::LT,
+                    span,
+                },
+            ) == true
+        );
     }
 
     #[test]
     fn test_join() {
-        let unstructed = &mut from_str(r#"{"a":[1,2,3],"b":312,"c":312}"#).unwrap();
+        let src = from_str(r#"{"a":[1,2,3],"b":3,"c":2}"#).unwrap();
+        let tag = from_str(r#"{"a":[1,2,3],"b":2,"c":1}"#).unwrap();
+
         let span = Span::new(1, 2);
 
-        let condition = Box::new(Expr::Gte {
-            field: "b".to_string(),
-            value: condition::Value::Field("c".to_string()),
-            span: span,
-        });
+        // src.b >= tag.c
 
-        let res = validate_match(
-            Some(&mut unstructed.clone()),
-            unstructed,
-            Expr::Join {
-                field: "".to_string(),
-                from: "".to_string(),
-                expr: condition,
-                value: condition::Value::Null,
-            },
+        assert!(
+            validate_match(
+                Some(&src),
+                &tag,
+                Expr::Join {
+                    span,
+                    expr: Box::new(Expr::Gte {
+                        field: "b".to_string(),
+                        value: condition::Value::Field("c".to_string()),
+                        span,
+                    })
+                }
+            ) == true
         );
-        assert!(res == true);
+
+        // TODO: 反过来测试不通过
+        // tag.c < src.c
+        assert!(
+            validate_match(
+                Some(&src),
+                &tag,
+                Expr::Join {
+                    span,
+                    expr: Box::new(Expr::Lt {
+                        field: "c".to_string(),
+                        value: condition::Value::Field("c".to_string()),
+                        span,
+                    })
+                }
+            ) == true
+        );
     }
 }

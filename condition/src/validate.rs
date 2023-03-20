@@ -98,9 +98,7 @@ pub enum Validate {
         value: Number,
     },
     Join {
-        from: String,
+        span: Span,
         expr: Box<Validate>, // just use compare expr
-        field: String,
-        value: Value,
     },
 }

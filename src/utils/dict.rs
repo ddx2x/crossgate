@@ -74,7 +74,7 @@ pub fn compare_and_merge_value(
     return false;
 }
 
-pub fn get(data: &mut Map<String, Value>, path: &str) -> Value {
+pub fn get(data: &Map<String, Value>, path: &str) -> Value {
     let (head, remain) = shift(path);
 
     if !data.contains_key(&head) {
@@ -82,13 +82,13 @@ pub fn get(data: &mut Map<String, Value>, path: &str) -> Value {
     }
 
     if remain == "" {
-        if let Some(value) = data.get_mut(&head) {
+        if let Some(value) = data.get(&head) {
             return value.clone();
         };
     }
 
-    if let Some(value) = data.get_mut(&head) {
-        if let Some(data) = value.as_object_mut() {
+    if let Some(value) = data.get(&head) {
+        if let Some(data) = value.as_object() {
             return get(data, &remain.to_string());
         }
     }

@@ -6,8 +6,8 @@ use self::value::map_get;
 
 pub mod dict;
 pub mod matchs;
-pub mod value;
 pub mod validate;
+pub mod value;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Unstructed(Map<String, Value>);
@@ -17,8 +17,8 @@ impl Unstructed {
         dict::set(&mut self.0, &path.to_string(), value);
     }
 
-    pub fn get(&mut self, path: &str) -> Value {
-        dict::get(&mut self.0, &path.to_string())
+    pub fn get(&self, path: &str) -> Value {
+        dict::get(&self.0, &path.to_string())
     }
 
     pub fn remove(&mut self, path: &str) {
