@@ -1,8 +1,9 @@
 #![allow(clippy::unnecessary_wraps)]
 
+use crate::Value;
 use lrlex::lrlex_mod;
 use lrpar::{lrpar_mod, Span};
-use serde_json::{Value, Number};
+use serde_json::Number;
 
 lrlex_mod!("validate.l");
 lrpar_mod!("validate.y");
