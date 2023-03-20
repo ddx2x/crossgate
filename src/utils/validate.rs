@@ -550,8 +550,8 @@ mod tests {
             Some(&mut unstructed.clone()),
             unstructed,
             Expr::Join {
-                field: "a".to_string(),
-                from: "a".to_string(),
+                field: "".to_string(),
+                from: "".to_string(),
                 expr: condition,
                 value: condition::Value::Null,
             },
