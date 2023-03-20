@@ -90,15 +90,38 @@ pub enum Validate {
         field: String,
         value: bool,
     },
+    // len(name) > 1, first this field must be string or array
     LenField {
-        // len(name) > 1, first this field must be string
         span: Span,
         field: String,
         compare: Compare,
         value: Number,
     },
-    Join {
+
+    // src.field > 1 || src.field > tag.field
+    Corss {
         span: Span,
-        expr: Box<Validate>, // just use compare expr
+        model: Model,
     },
+}
+
+#[derive(Clone, Debug)]
+pub enum Model {
+    Field {
+        src_field: String,
+        tag_field: String,
+        compare: Compare,
+    },
+    Value {
+        object: Object,
+        field: String,
+        compare: Compare,
+        value: Value,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub enum Object {
+    Src,
+    Tag,
 }
