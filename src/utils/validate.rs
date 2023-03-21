@@ -50,12 +50,72 @@ fn cmp(src: &V2, tag: &V2, compare: Compare) -> bool {
     match compare {
         Compare::EQ => src == tag,
         Compare::NE => src != tag,
+        _ => cmp_num(src, tag, compare),
+    }
+}
 
-        // TODO : 实现其他
-        // Compare::GT => src > tag,
-        // Compare::GTE => src >= tag,
-        // Compare::LT => src < tag,
-        // Compare::LTE => src <= tag,
+fn cmp_num(src: &V2, tag: &V2, compare: Compare) -> bool {
+    match compare {
+        Compare::GT => match src {
+            V2::Number(src_num) => {
+                if src_num.is_i64() {
+                    return src_num.as_i64() > tag.as_i64();
+                }
+                if src_num.is_f64() {
+                    return src_num.as_f64() > tag.as_f64();
+                }
+                if src_num.is_u64() {
+                    return src_num.as_u64() > tag.as_u64();
+                }
+                return true;
+            }
+            _ => false,
+        },
+        Compare::GTE => match src {
+            V2::Number(src_num) => {
+                if src_num.is_i64() {
+                    return src_num.as_i64() >= tag.as_i64();
+                }
+                if src_num.is_f64() {
+                    return src_num.as_f64() >= tag.as_f64();
+                }
+                if src_num.is_u64() {
+                    return src_num.as_u64() >= tag.as_u64();
+                }
+                return true;
+            }
+            _ => false,
+        },
+        Compare::LT => match src {
+            V2::Number(src_num) => {
+                if src_num.is_i64() {
+                    return src_num.as_i64() < tag.as_i64();
+                }
+                if src_num.is_f64() {
+                    return src_num.as_f64() < tag.as_f64();
+                }
+                if src_num.is_u64() {
+                    return src_num.as_u64() < tag.as_u64();
+                }
+                return true;
+            }
+            _ => false,
+        },
+        Compare::LTE => match src {
+            V2::Number(src_num) => {
+                if src_num.is_i64() {
+                    return src_num.as_i64() <= tag.as_i64();
+                }
+                if src_num.is_f64() {
+                    return src_num.as_f64() <= tag.as_f64();
+                }
+                if src_num.is_u64() {
+                    return src_num.as_u64() <= tag.as_u64();
+                }
+                return true;
+            }
+            _ => false,
+        },
         _ => false,
     }
 }
@@ -66,78 +126,10 @@ fn basic_match(val: &Unstructed, expr: &Expr) -> bool {
         Expr::Or { lhs, rhs, .. } => return basic_match(val, &lhs) || basic_match(val, &rhs),
         Expr::Eq { field, value, .. } => return to(value, val) == val.get(&field),
         Expr::Ne { field, value, .. } => return to(value, val) != val.get(&field),
-        Expr::Gt { field, value, .. } => {
-            let value = to(value, val);
-            match val.get(&field) {
-                V2::Number(target_number) => {
-                    if target_number.is_i64() {
-                        return target_number.as_i64() > value.as_i64();
-                    }
-                    if target_number.is_u64() {
-                        return target_number.as_u64() > value.as_u64();
-                    }
-                    if target_number.is_f64() {
-                        return target_number.as_f64() > value.as_f64();
-                    }
-                    return false;
-                }
-                _ => return false,
-            }
-        }
-        Expr::Gte { field, value, .. } => {
-            let value = to(value, val);
-            match val.get(&field) {
-                V2::Number(target_number) => {
-                    if target_number.is_i64() {
-                        return target_number.as_i64() >= value.as_i64();
-                    }
-                    if target_number.is_u64() {
-                        return target_number.as_u64() >= value.as_u64();
-                    }
-                    if target_number.is_f64() {
-                        return target_number.as_f64() >= value.as_f64();
-                    }
-                    return false;
-                }
-                _ => return false,
-            }
-        }
-        Expr::Lt { field, value, .. } => {
-            let value = to(value, val);
-            match val.get(&field) {
-                V2::Number(target_number) => {
-                    if target_number.is_i64() {
-                        return target_number.as_i64() < value.as_i64();
-                    }
-                    if target_number.is_u64() {
-                        return target_number.as_u64() < value.as_u64();
-                    }
-                    if target_number.is_f64() {
-                        return target_number.as_f64() < value.as_f64();
-                    }
-                    return false;
-                }
-                _ => return false,
-            }
-        }
-        Expr::Lte { field, value, .. } => {
-            let value = to(value, val);
-            match val.get(&field) {
-                V2::Number(target_number) => {
-                    if target_number.is_i64() {
-                        return target_number.as_i64() <= value.as_i64();
-                    }
-                    if target_number.is_u64() {
-                        return target_number.as_u64() <= value.as_u64();
-                    }
-                    if target_number.is_f64() {
-                        return target_number.as_f64() <= value.as_f64();
-                    }
-                    return false;
-                }
-                _ => return false,
-            }
-        }
+        Expr::Gt { field, value, .. } => cmp_num(&val.get(&field), &to(value, val), Compare::GT),
+        Expr::Gte { field, value, .. } => cmp_num(&val.get(&field), &to(value, val), Compare::GTE),
+        Expr::Lt { field, value, .. } => cmp_num(&val.get(&field), &to(value, val), Compare::LT),
+        Expr::Lte { field, value, .. } => cmp_num(&val.get(&field), &to(value, val), Compare::LTE),
         Expr::In { field, value, .. } => {
             if let Some(value_list) = to(value, val).as_array() {
                 return value_list.contains(&val.get(&field));
@@ -159,56 +151,22 @@ fn basic_match(val: &Unstructed, expr: &Expr) -> bool {
             compare,
             value,
             ..
-        } => match compare {
-            condition::Compare::EQ => {
-                if let Some(value_list) = val.get(&field).as_array() {
-                    if let Some(required_length) = value.as_i64() {
-                        return value_list.len() == required_length as usize;
-                    }
-                }
-                return false;
+        } => {
+            let val = match val.get(&field) {
+                V2::String(val) => Some(val.len() as i64),
+                V2::Array(val) => Some(val.len() as i64),
+                _ => None,
+            };
+            match compare {
+                Compare::EQ => return val == value.as_i64(),
+                Compare::NE => return val != value.as_i64(),
+                Compare::GT => return val > value.as_i64(),
+                Compare::GTE => return val >= value.as_i64(),
+                Compare::LT => return val < value.as_i64(),
+                Compare::LTE => return val <= value.as_i64(),
             }
-            condition::Compare::NE => {
-                if let Some(value_list) = val.get(&field).as_array() {
-                    if let Some(required_length) = value.as_i64() {
-                        return value_list.len() != required_length as usize;
-                    }
-                }
-                return false;
-            }
-            condition::Compare::GT => {
-                if let Some(value_list) = val.get(&field).as_array() {
-                    if let Some(required_length) = value.as_i64() {
-                        return value_list.len() > required_length as usize;
-                    }
-                }
-                return false;
-            }
-            condition::Compare::GTE => {
-                if let Some(value_list) = val.get(&field).as_array() {
-                    if let Some(required_length) = value.as_i64() {
-                        return value_list.len() >= required_length as usize;
-                    }
-                }
-                return false;
-            }
-            condition::Compare::LT => {
-                if let Some(value_list) = val.get(&field).as_array() {
-                    if let Some(required_length) = value.as_i64() {
-                        return value_list.len() < required_length as usize;
-                    }
-                }
-                return false;
-            }
-            condition::Compare::LTE => {
-                if let Some(value_list) = val.get(&field).as_array() {
-                    if let Some(required_length) = value.as_i64() {
-                        return value_list.len() <= required_length as usize;
-                    }
-                }
-                return false;
-            }
-        },
+        }
+
         _ => return false,
     }
 }
@@ -407,7 +365,6 @@ mod tests {
             ) == true
         );
 
-        // TODO: 测试不通过
         assert!(
             validate_match(
                 None,
