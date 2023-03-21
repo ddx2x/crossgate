@@ -67,7 +67,7 @@ fn cmp_num(src: &V2, tag: &V2, compare: Compare) -> bool {
                 if src_num.is_u64() {
                     return src_num.as_u64() > tag.as_u64();
                 }
-                return true;
+                return false;
             }
             _ => false,
         },
@@ -82,7 +82,7 @@ fn cmp_num(src: &V2, tag: &V2, compare: Compare) -> bool {
                 if src_num.is_u64() {
                     return src_num.as_u64() >= tag.as_u64();
                 }
-                return true;
+                return false;
             }
             _ => false,
         },
@@ -97,7 +97,7 @@ fn cmp_num(src: &V2, tag: &V2, compare: Compare) -> bool {
                 if src_num.is_u64() {
                     return src_num.as_u64() < tag.as_u64();
                 }
-                return true;
+                return false;
             }
             _ => false,
         },
@@ -112,7 +112,7 @@ fn cmp_num(src: &V2, tag: &V2, compare: Compare) -> bool {
                 if src_num.is_u64() {
                     return src_num.as_u64() <= tag.as_u64();
                 }
-                return true;
+                return false;
             }
             _ => false,
         },
