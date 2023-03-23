@@ -24,6 +24,7 @@ pub struct Condition<T: Filter> {
     pub(crate) sorts: Vec<Sort>,
     pub(crate) fields: Vec<String>,
     pub filter: T,
+    pub(crate) update_version: bool,
     pub(crate) pageable: bool,
 }
 
@@ -38,6 +39,7 @@ where
             pageable: false,
             page: 0,
             size: 10,
+            update_version: true,
             sorts: Default::default(),
             fields: Default::default(),
             filter: t,
@@ -74,6 +76,11 @@ where
         self
     }
 
+    pub fn with_update_version(&mut self, update_version: bool) -> &mut Condition<T> {
+        self.update_version = update_version;
+        self
+    }
+    
     pub fn wheres<S: ToString + ?Sized>(&mut self, input: &S) -> anyhow::Result<&mut Self> {
         self.filter.parse(&input.to_string())?;
         Ok(self)
