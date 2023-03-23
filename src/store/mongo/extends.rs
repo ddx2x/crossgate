@@ -267,7 +267,7 @@ where
         } = q;
 
         let block = async move {
-            let (tx, rx) = tokio::sync::mpsc::channel(4);
+            let (tx, rx) = tokio::sync::mpsc::channel(1);
 
             let (filter_doc, filter_src) = filter.get();
 
