@@ -395,6 +395,7 @@ where
             table,
             filter,
             fields,
+            update_version,
             ..
         } = q;
 
@@ -411,8 +412,9 @@ where
                         .map_err(|e| StoreError::OtherError(e.to_string()))?,
                 );
             }
-
-            update.insert("version", Bson::Int64(current_time_sess() as i64));
+            if update_version {
+                update.insert("version", Bson::Int64(current_time_sess() as i64));
+            }
 
             let filter = filter.get_doc();
             let _ = c
