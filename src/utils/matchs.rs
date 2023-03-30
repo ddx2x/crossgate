@@ -528,7 +528,7 @@ mod tests {
             from_str(r#"{"name":"alex","active":true}"#).unwrap(),
         ];
 
-        // where active is null
+        // where len(name) = 4
         match matchs(&mut datas.clone(), parse(r#"len(name) = 4 "#).unwrap()) {
             Ok(r) => {
                 if r.len() != 3 {
