@@ -10,13 +10,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .lexer_in_src_dir("cond.l")?
         .build()?;
-        CTLexerBuilder::new()
+    CTLexerBuilder::new()
         .lrpar_config(|ctp| {
             ctp.yacckind(YaccKind::Grmtools)
-                .grammar_in_src_dir("validate.y")
+                .grammar_in_src_dir("t.y")
                 .unwrap()
         })
-        .lexer_in_src_dir("validate.l")?
+        .lexer_in_src_dir("t.l")?
         .build()?;
     Ok(())
 }

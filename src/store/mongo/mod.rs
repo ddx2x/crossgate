@@ -203,7 +203,28 @@ where
                             break;
                         }
                     }
-                    while let Ok(Some(evt)) = stream.try_next().await {
+
+                    while stream.is_alive() {
+                        let evt = match stream.next_if_any().await {
+                            Ok(Some(evt)) => evt,
+                            Ok(None) => {
+                                continue;
+                            }
+                            Err(e) => {
+                                log::error!("watch stream error: {}", e.to_string());
+                                if let Err(e) = tx
+                                    .send(Event::Error(format!(
+                                        "watch stream error: {}",
+                                        e.to_string()
+                                    )))
+                                    .await
+                                {
+                                    log::error!("{:?}", e.to_string());
+                                }
+                                break;
+                            }
+                        };
+
                         let ChangeStreamEvent::<T> {
                             operation_type,
                             full_document,

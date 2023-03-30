@@ -1,5 +1,5 @@
 %start Expr
-%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY'
+%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY' 'IS' 'IS_NOT' 'NULL' 'LEN'
 %left '||'
 %right '&&'
 
@@ -25,24 +25,30 @@ Factor -> Expr:
     '(' Factor ')'  { $2 }
   | TextCompare   { $1 }
   | NumberCompare { $1 }
-  | IdentCompare  { $1 }
   | BoolExpr { $1 }
+  | IsExpr { $1 }
+  | LenExpr { $1 }
+  ;
+
+LenExpr -> Expr:
+    'LEN''('Ident')' '='  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Eq, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '>=' Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Gte, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '<=' Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Lte, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '>'  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Lt, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '<'  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Gt, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '!='  Number  { Expr::Len { span: $span, field: $3, cmp: Compare::Ne, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '<>'  Number  { Expr::Len { span: $span, field: $3, cmp: Compare::Ne, value: Value::Number($6) } }
+  ;
+
+IsExpr -> Expr:
+    Ident 'IS' Null     { Expr::IsNull    { span: $span, field: $1 } }
+  | Ident 'IS_NOT' Null { Expr::IsNotNull { span: $span, field: $1 } }
   ;
 
 BoolExpr -> Expr:
     Ident '='  Bool { Expr::Eq { span: $span, field: $1, value: Value::Bool($3) } }
   | Ident '<>' Bool { Expr::Ne { span: $span, field: $1, value: Value::Bool($3) } }
   | Ident '!=' Bool { Expr::Ne { span: $span, field: $1, value: Value::Bool($3) } }
-  ;
-
-IdentCompare -> Expr:
-    Ident '='  Ident { Expr::Eq { span: $span, field: $1, value: Value::Field($3) } }
-  | Ident '>'  Ident { Expr::Gt { span: $span, field: $1, value: Value::Field($3) } }
-  | Ident '<'  Ident { Expr::Lt { span: $span, field: $1, value: Value::Field($3) } }
-  | Ident '>=' Ident { Expr::Gte { span: $span, field: $1, value: Value::Field($3) } }
-  | Ident '<=' Ident { Expr::Lte { span: $span, field: $1, value: Value::Field($3) } }
-  | Ident '<>' Ident { Expr::Ne { span: $span, field: $1, value: Value::Field($3) } }
-  | Ident '!=' Ident { Expr::Ne { span: $span, field: $1, value: Value::Field($3) } }
   ;
 
 TextCompare -> Expr:
@@ -115,6 +121,10 @@ TextArray -> Value:
       }
       Value::List(rs)
   }
+  ;
+
+Null -> Value:
+  'NULL' { Value::Null }
   ;
 
 %%

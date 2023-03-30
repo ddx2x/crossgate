@@ -1,4 +1,3 @@
-
 #![allow(clippy::unnecessary_wraps)]
 
 use lrlex::lrlex_mod;
@@ -7,6 +6,16 @@ use serde_json::Number;
 
 lrlex_mod!("cond.l");
 lrpar_mod!("cond.y");
+
+#[derive(Clone, Debug)]
+pub enum Compare {
+    Eq,
+    Ne,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+}
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -73,11 +82,15 @@ pub enum Expr {
     IsNull {
         span: Span,
         field: String,
-        value: Value,
     },
     IsNotNull {
         span: Span,
         field: String,
+    },
+    Len {
+        span: Span,
+        field: String,
+        cmp: Compare,
         value: Value,
     },
 }
@@ -85,10 +98,10 @@ pub enum Expr {
 #[derive(Clone, Debug)]
 pub enum Value {
     Text(String),   // abc="123"
-    Number(Number), // abc=123, abc=1.2...
+    Number(Number), // abc=123, abc=1.2
     Bool(bool),
     List(Vec<Value>),
-    Field(String), // a=b field.a = field.b
+    Len(String),
     Null,
 }
 
@@ -117,8 +130,6 @@ pub fn parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
         None => return Err(anyhow::anyhow!("{}", "Unable to evaluate expression.")),
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -261,6 +272,30 @@ mod tests {
 
         // is true
         match parse("active = true") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+    }
+
+    #[test]
+    fn test_null() {
+        // is null
+        match parse("a ^ null") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+
+        // is not null
+        match parse("a ^^ null") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+    }
+
+    #[test]
+    fn test_len() {
+        // len(a) = 1
+        match parse("len(a) = 1") {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
         };

@@ -6,7 +6,7 @@ use self::value::map_get;
 
 pub mod dict;
 pub mod matchs;
-pub mod validate;
+// pub mod validate;
 pub mod value;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

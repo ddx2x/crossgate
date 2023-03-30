@@ -240,6 +240,35 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
 
             return false;
         }
+        Expr::IsNotNull { field, .. } => {
+            if unstructed.get_by_type::<Value>(field, Value::Null) != Value::Null {
+                return true;
+            }
+            return false;
+        }
+        Expr::IsNull { field, .. } => {
+            if unstructed.get_by_type::<Value>(field, Value::Null) == Value::Null {
+                return true;
+            }
+            return false;
+        }
+        Expr::Len {
+            field, cmp, value, ..
+        } => {
+            let len = match value {
+                condition::Value::Number(v) => v.as_i64(),
+                _ => return false,
+            };
+            let real = unstructed.get_by_type::<String>(field, "".to_owned()).len() as i64;
+            match cmp {
+                condition::Compare::Eq => len == Some(real),
+                condition::Compare::Ne => len != Some(real),
+                condition::Compare::Gt => len > Some(real),
+                condition::Compare::Gte => len >= Some(real),
+                condition::Compare::Lt => len < Some(real),
+                condition::Compare::Lte => len <= Some(real),
+            }
+        }
         _ => false,
     }
 }
@@ -455,6 +484,57 @@ mod tests {
                 }
 
                 println!("bool data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_null() {
+        let datas = vec![
+            from_str(r#"{"name":"bobo","active":null}"#).unwrap(),
+            from_str(r#"{"name":"bill","active":false}"#).unwrap(),
+            from_str(r#"{"name":"alex","active":true}"#).unwrap(),
+        ];
+
+        // where active is null
+        match matchs(&mut datas.clone(), parse(r#"active ^ null"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+                println!("data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+
+        // where active is not null
+        match matchs(&mut datas.clone(), parse(r#"active ^^ null"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 2 {
+                    panic!("Inconsistent expected results")
+                }
+                println!("data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_len() {
+        let datas = vec![
+            from_str(r#"{"name":"bobo","active":null}"#).unwrap(),
+            from_str(r#"{"name":"bill","active":false}"#).unwrap(),
+            from_str(r#"{"name":"alex","active":true}"#).unwrap(),
+        ];
+
+        // where active is null
+        match matchs(&mut datas.clone(), parse(r#"len(name) = 4 "#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 3 {
+                    panic!("Inconsistent expected results")
+                }
+                println!("data {:?}", r);
             }
             Err(e) => panic!("simulation data error: {}", e),
         }
