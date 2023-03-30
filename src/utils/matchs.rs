@@ -3,6 +3,13 @@ use serde_json::Value;
 
 use super::Unstructed;
 
+pub fn match_by_predicate<'a>(
+    unstructeds: &'a mut Vec<Unstructed>,
+    predicate: &str,
+) -> anyhow::Result<&'a mut Vec<Unstructed>> {
+    matchs(unstructeds, condition::parse(predicate)?)
+}
+
 pub fn matchs<'a>(
     unstructeds: &'a mut Vec<Unstructed>,
     expr: Expr,
