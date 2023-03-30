@@ -266,7 +266,12 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                 condition::Value::Number(v) => v.as_i64(),
                 _ => return false,
             };
-            let real = unstructed.get_by_type::<String>(field, "".to_owned()).len() as i64;
+            let real = match unstructed.get_by_type::<Value>(field, Value::Array(vec![])) {
+                Value::String(v) => v.len() as i64,
+                Value::Array(v) => v.len() as i64,
+                Value::Object(v) => v.len() as i64,
+                _ => return false,
+            };
             match cmp {
                 condition::Compare::Eq => len == Some(real),
                 condition::Compare::Ne => len != Some(real),
@@ -539,6 +544,36 @@ mod tests {
         match matchs(&mut datas.clone(), parse(r#"len(name) = 4 "#).unwrap()) {
             Ok(r) => {
                 if r.len() != 3 {
+                    panic!("Inconsistent expected results")
+                }
+                println!("data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+
+
+        let datas = vec![
+            from_str(r#"{"name":"bobo","ids":[1,2,3]}"#).unwrap(),
+        ];
+        // where len(ids) = 3
+        match matchs(&mut datas.clone(), parse(r#"len(ids) = 3 "#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+                println!("data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+
+
+        let datas = vec![
+            from_str(r#"{"name":"bobo","obj":{"a":1}}"#).unwrap(),
+        ];
+        // where len(obj) = 1
+        match matchs(&mut datas.clone(), parse(r#"len(obj) = 1 "#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
                     panic!("Inconsistent expected results")
                 }
                 println!("data {:?}", r);
