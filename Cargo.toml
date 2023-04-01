@@ -17,6 +17,8 @@ serde_repr = "0.1"
 regex = "1.7.0"
 lrpar = "0.13"
 
+dotenv="0.15"
+
 mongodb = "2"
 
 # log

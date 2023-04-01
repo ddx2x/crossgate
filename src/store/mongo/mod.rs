@@ -20,6 +20,7 @@ use bson::{doc, Bson, Document};
 use futures::{Future, TryStreamExt};
 use mongodb::options::{ChangeStreamOptions, FindOptions, FullDocumentType, UpdateOptions};
 use mongodb::{change_stream, Client};
+use std::env;
 use std::fmt::Debug;
 
 use serde::de::DeserializeOwned;
@@ -48,13 +49,23 @@ pub struct MongoStore {
 
 impl MongoStore {
     pub async fn new(uri: &str) -> Result<Self> {
+        dotenv::dotenv().ok();
+
+        let max_pool_size: u32 = env::var("MAX_POOL_SIZE")
+            .map_err(|e| StoreError::OtherError(e.to_string()))?
+            .parse()
+            .unwrap_or(100);
+
         match mongodb::options::ClientOptions::parse_with_resolver_config(
             &uri,
             mongodb::options::ResolverConfig::cloudflare(),
         )
         .await
         {
-            Ok(options) => {
+            Ok(mut options) => {
+                options.min_pool_size = Some(1);
+                options.max_pool_size = Some(max_pool_size);
+                
                 let client = Client::with_options(options).unwrap();
                 Ok(Self { client })
             }
