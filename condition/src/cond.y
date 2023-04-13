@@ -1,5 +1,5 @@
 %start Expr
-%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY' 'IS' 'IS_NOT' 'NULL' 'LEN'
+%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY' 'IS' 'IS_NOT' 'NULL' 'LEN' 'BELONG'
 %left '||'
 %right '&&'
 
@@ -25,6 +25,7 @@ Factor -> Expr:
     '(' Factor ')'  { $2 }
   | TextCompare   { $1 }
   | NumberCompare { $1 }
+  | BelongCompare { $1 }
   | BoolExpr { $1 }
   | IsExpr { $1 }
   | LenExpr { $1 }
@@ -76,6 +77,12 @@ NumberCompare -> Expr:
   | Ident 'IN'  IntArray { Expr::In    { span: $span, field: $1, value: $3 } }
   | Ident 'NIN' IntArray { Expr::NotIn { span: $span, field: $1, value: $3 } }
   ;
+
+BelongCompare -> Expr:
+    Ident 'BELONG'  TextArray { Expr::Belong { span: $span, field: $1, value: $3 } }
+  | Ident 'BELONG'  IntArray  { Expr::Belong { span: $span, field: $1, value: $3 } }
+  ;
+
 Text -> String:
   'STRING' { remove_apostrophe($lexer.span_str($1.as_ref().unwrap().span()).to_string()) } 
   ;

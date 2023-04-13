@@ -1,5 +1,6 @@
 #![feature(type_alias_impl_trait)]
 #![feature(core_intrinsics)]
+#![feature(closure_lifetime_binder)]
 
 // tools lib
 pub mod object;

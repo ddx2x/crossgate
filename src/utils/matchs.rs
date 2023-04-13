@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use condition::Expr;
 use serde_json::Value;
 
@@ -281,6 +283,37 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                 condition::Compare::Lte => len <= Some(real),
             }
         }
+        Expr::Belong { field, value, .. } => {
+            if let condition::Value::List(rhs_list) = value {
+                let lhs_list = unstructed.get_by_type::<Vec<Value>>(&field, vec![]);
+                if lhs_list.len() == 0 || rhs_list.len() == 0 {
+                    return false;
+                }
+
+                let rhs_list = rhs_list
+                    .iter()
+                    .map(|item| match item {
+                        condition::Value::Text(v) => Value::String(v.clone()),
+                        condition::Value::Number(v) => Value::Number(v.clone()),
+                        _ => Value::Null,
+                    })
+                    .collect::<Vec<_>>();
+
+                let mut hits = vec![];
+
+                let include = for<'a> |item: &'a Value, set: Vec<Value>| -> bool {
+                    return set.contains(&item);
+                };
+
+                for lhs in lhs_list {
+                    hits.push(include(&lhs, rhs_list.clone()));
+                }
+
+                return !hits.contains(&false);
+            }
+
+            return false;
+        }
         _ => false,
     }
 }
@@ -551,10 +584,7 @@ mod tests {
             Err(e) => panic!("simulation data error: {}", e),
         }
 
-
-        let datas = vec![
-            from_str(r#"{"name":"bobo","ids":[1,2,3]}"#).unwrap(),
-        ];
+        let datas = vec![from_str(r#"{"name":"bobo","ids":[1,2,3]}"#).unwrap()];
         // where len(ids) = 3
         match matchs(&mut datas.clone(), parse(r#"len(ids) = 3 "#).unwrap()) {
             Ok(r) => {
@@ -566,10 +596,7 @@ mod tests {
             Err(e) => panic!("simulation data error: {}", e),
         }
 
-
-        let datas = vec![
-            from_str(r#"{"name":"bobo","obj":{"a":1}}"#).unwrap(),
-        ];
+        let datas = vec![from_str(r#"{"name":"bobo","obj":{"a":1}}"#).unwrap()];
         // where len(obj) = 1
         match matchs(&mut datas.clone(), parse(r#"len(obj) = 1 "#).unwrap()) {
             Ok(r) => {
@@ -577,6 +604,33 @@ mod tests {
                     panic!("Inconsistent expected results")
                 }
                 println!("data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_belong() {
+        let datas = vec![from_str(r#"{"alist":[1,2]}"#).unwrap()];
+
+        match matchs(&mut datas.clone(), parse(r#"alist<<(1,2,3)"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test_belong data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+
+        match matchs(&mut datas.clone(), parse(r#"alist<<(1,3)"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 0 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test_belong data {:?}", r);
             }
             Err(e) => panic!("simulation data error: {}", e),
         }
