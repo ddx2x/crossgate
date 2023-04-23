@@ -1,3 +1,4 @@
+#![feature(impl_trait_in_assoc_type)]
 #![feature(type_alias_impl_trait)]
 #![feature(core_intrinsics)]
 #![feature(closure_lifetime_binder)]
