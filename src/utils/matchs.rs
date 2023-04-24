@@ -323,6 +323,7 @@ mod tests {
     use super::matchs;
     use crate::utils::from_str;
     use condition::parse;
+    use serde_json::json;
 
     #[test]
     fn test_eq() {
@@ -631,6 +632,41 @@ mod tests {
                 }
 
                 println!("test_belong data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_mix() {
+        let datas = vec![from_str(
+            r#"
+        {
+            "uid": "Abc",
+            "level": 2,
+            "parent_id": "汽车养护",
+            "full_id": "",
+            "nav_status": 1,
+            "keywords": [
+                "ABC"
+            ],
+            "description": ""
+        }
+        "#,
+        )
+        .unwrap()];
+
+        match matchs(
+            &mut datas.clone(),
+            parse(r#"level ~ (1,2,3) && nav_status ~ (1,2) && len(keywords) > 0 && len(uid) > 0"#)
+                .unwrap(),
+        ) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test data {:?}", r);
             }
             Err(e) => panic!("simulation data error: {}", e),
         }

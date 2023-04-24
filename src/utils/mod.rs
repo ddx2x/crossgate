@@ -45,6 +45,20 @@ impl Unstructed {
         }
         Ok(false)
     }
+
+    pub fn cut(&self, keys: Vec<String>) -> Unstructed {
+        let mut map = Map::new();
+        for key in keys {
+            if let Some(value) = self.0.get(&key) {
+                map.insert(key, value.clone());
+            }
+        }
+        Unstructed(map)
+    }
+}
+
+pub fn from_map(map: Map<String, Value>) -> Unstructed {
+    Unstructed(map)
 }
 
 pub fn from_str(s: &str) -> anyhow::Result<Unstructed> {
