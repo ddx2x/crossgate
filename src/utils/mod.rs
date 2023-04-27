@@ -5,9 +5,24 @@ use serde_json::{Map, Value};
 use self::value::map_get;
 
 pub mod dict;
+pub mod local;
 pub mod matchs;
-// pub mod validate;
 pub mod value;
+pub mod retry;
+pub mod time;
+
+pub use local::ErrorLocation;
+
+#[macro_export]
+macro_rules! here {
+    () => {
+        &crate::Location {
+            file: file!(),
+            line: line!(),
+            column: column!(),
+        }
+    };
+}
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Unstructed(Map<String, Value>);
