@@ -77,6 +77,44 @@ impl Unstructed {
     }
 }
 
+// 参数检查
+// item: &mut Unstructed
+// rules: [(&str, &str, bool)]
+// 例如：规则字段， 0：条件， 1：错误信息， 2：是否取反
+// 用例： item : {"a":1,"b":2,"c":3}, rules: [
+//    ("a=1", "a 必须等于1", true),
+//    ("a!=1","a 必须等于1", false), // 与上面的规则相反
+// ]
+pub fn validate(item: &mut Unstructed, rules: &[(&str, &str, bool)]) -> anyhow::Result<(), String> {
+    for (rule, resp, and_non) in rules {
+        match item.match_by_predicate(rule) {
+            Ok(rs) => {
+                if (*and_non && rs) || (!and_non && !rs) {
+                    continue;
+                }
+                return Err(resp.to_owned().to_owned());
+            }
+            Err(e) => return Err(format!("validate failed: {}", e.to_string())),
+        }
+    }
+    Ok(())
+}
+
+pub fn validates(items: &[(&mut Unstructed, &str, &str, bool)]) -> anyhow::Result<(), String> {
+    for (item, rule, resp, and_non) in items {
+        match item.match_by_predicate(rule) {
+            Ok(rs) => {
+                if (*and_non && rs) || (!and_non && !rs) {
+                    continue;
+                }
+                return Err(resp.to_owned().to_owned());
+            }
+            Err(e) => return Err(format!("validate failed: {}", e.to_string())),
+        }
+    }
+    Ok(())
+}
+
 pub fn from_map(map: Map<String, Value>) -> Unstructed {
     Unstructed(map)
 }
@@ -92,7 +130,7 @@ pub fn empty_unstructed() -> Unstructed {
 #[cfg(test)]
 mod tests {
 
-    use super::from_str;
+    use super::{from_str, validate};
 
     #[test]
     fn test_basic() {
@@ -121,5 +159,16 @@ mod tests {
                 .get_by_type::<String>("name2", "".into()),
             "lijim".to_string()
         );
+    }
+
+    #[test]
+    fn test_validate() {
+        let mut item = from_str(r#"{"a":1,"b":2}"#).unwrap();
+
+        validate(
+            &mut item,
+            &[("a=1", "a 必须等于1", true), ("a!=1", "a 必须等于1", false)],
+        )
+        .unwrap();
     }
 }
