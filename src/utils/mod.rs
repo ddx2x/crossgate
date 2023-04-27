@@ -55,6 +55,26 @@ impl Unstructed {
         }
         Unstructed(map)
     }
+
+    pub fn remove_filelds<'a>(&'a mut self, fields: &'a [&str]) -> &'a mut Unstructed {
+        for field in fields {
+            self.remove(field)
+        }
+        self
+    }
+
+    pub fn change_fields<'a>(&'a mut self, fields: &'a [(&str, &str)]) -> &'a mut Unstructed {
+        for field in fields {
+            self.set(&field.1, &self.get(&field.0));
+            self.remove(field.0);
+        }
+        self
+    }
+
+    pub fn copy_field<'a>(&'a mut self, dst: &str, src: &str) -> &'a mut Unstructed {
+        self.set(&dst, &self.get(&src));
+        self
+    }
 }
 
 pub fn from_map(map: Map<String, Value>) -> Unstructed {
@@ -76,25 +96,30 @@ mod tests {
 
     #[test]
     fn test_basic() {
-        let unstructed = match from_str(r#"{"abc":123,"name":"lijim"}"#) {
+        let mut item = match from_str(r#"{"abc":123,"name":"lijim"}"#) {
             Ok(item) => item,
             Err(e) => panic!("{}", e),
         };
 
-        assert_eq!(unstructed.get_by_type::<u64>("abc", 0), 123);
+        assert_eq!(item.get_by_type::<u64>("abc", 0), 123);
 
-        assert_eq!(unstructed.match_by_predicate("abc=123").unwrap(), true);
+        assert_eq!(item.match_by_predicate("abc=123").unwrap(), true);
+
+        assert_eq!(item.match_by_predicate("name='lijimin'").unwrap(), false);
 
         assert_eq!(
-            unstructed.match_by_predicate("name='lijimin'").unwrap(),
-            false
+            item.match_by_predicate("name='lijim' && abc=123").unwrap(),
+            true
         );
 
+        item.copy_field("cde", "abc");
+
+        assert_eq!(item.get_by_type::<u32>("cde", 0), 123);
+
         assert_eq!(
-            unstructed
-                .match_by_predicate("name='lijim' && abc=123")
-                .unwrap(),
-            true
+            item.change_fields(&[("name", "name2")])
+                .get_by_type::<String>("name2", "".into()),
+            "lijim".to_string()
         );
     }
 }
