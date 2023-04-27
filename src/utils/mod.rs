@@ -7,11 +7,11 @@ use self::value::map_get;
 pub mod dict;
 pub mod local;
 pub mod matchs;
-pub mod value;
 pub mod retry;
 pub mod time;
+pub mod value;
 
-pub use local::ErrorLocation;
+pub use local::{ErrorLocation, Location};
 
 #[macro_export]
 macro_rules! here {
@@ -71,7 +71,7 @@ impl Unstructed {
         Unstructed(map)
     }
 
-    pub fn remove_filelds<'a>(&'a mut self, fields: &'a [&str]) -> &'a mut Unstructed {
+    pub fn remove_fields<'a>(&'a mut self, fields: &'a [&str]) -> &'a mut Unstructed {
         for field in fields {
             self.remove(field)
         }
