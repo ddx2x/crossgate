@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use std::fmt::Display;
 
 pub struct Location {
-    file: &'static str,
-    line: u32,
-    column: u32,
+    pub file: &'static str,
+    pub line: u32,
+    pub column: u32,
 }
 
 pub trait ErrorLocation<T, E> {

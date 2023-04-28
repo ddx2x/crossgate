@@ -16,7 +16,7 @@ pub use local::{ErrorLocation, Location};
 #[macro_export]
 macro_rules! here {
     () => {
-        &crate::Location {
+        &Location {
             file: file!(),
             line: line!(),
             column: column!(),
