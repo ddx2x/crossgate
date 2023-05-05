@@ -100,7 +100,7 @@ impl Unstructed {
 //    ("a=1", "a 必须等于1", true),
 //    ("a!=1","a 必须等于1", false), // 与上面的规则相反
 // ]
-pub fn validate(item: &mut Unstructed, rules: &[(&str, &str, bool)]) -> anyhow::Result<(), String> {
+pub fn validate(item: &Unstructed, rules: &[(&str, &str, bool)]) -> anyhow::Result<(), String> {
     for (rule, resp, and_non) in rules {
         match item.match_by_predicate(rule) {
             Ok(rs) => {
@@ -115,7 +115,7 @@ pub fn validate(item: &mut Unstructed, rules: &[(&str, &str, bool)]) -> anyhow::
     Ok(())
 }
 
-pub fn validates(items: &[(&mut Unstructed, &str, &str, bool)]) -> anyhow::Result<(), String> {
+pub fn validates(items: &[(&Unstructed, &str, &str, bool)]) -> anyhow::Result<(), String> {
     for (item, rule, resp, and_non) in items {
         match item.match_by_predicate(rule) {
             Ok(rs) => {

@@ -279,8 +279,8 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                 condition::Compare::Ne => len != Some(real),
                 condition::Compare::Gt => len > Some(real),
                 condition::Compare::Gte => len >= Some(real),
-                condition::Compare::Lt => len < Some(real),
-                condition::Compare::Lte => len <= Some(real),
+                condition::Compare::Lt => Some(real) < len,
+                condition::Compare::Lte => Some(real) <= len,
             }
         }
         Expr::Belong { field, value, .. } => {
@@ -660,6 +660,39 @@ mod tests {
             &mut datas.clone(),
             parse(r#"level ~ (1,2,3) && nav_status ~ (1,2) && len(keywords) > 0 && len(uid) > 0"#)
                 .unwrap(),
+        ) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn my_test() {
+        let datas = vec![from_str(
+            r#"
+        {
+            "uid": "64535b7c0c28142880602cca",
+            "channel_name": "VIP普通用户",
+            "level": 1,
+            "direct_subordinate": 1,
+            "indirect_subordinate": 1,
+            "share_ratio": 1,
+            "can_purchased": true,
+            "price": 1
+        }
+        "#,
+        )
+        .unwrap()];
+
+        match matchs(
+            &mut datas.clone(),
+            parse(r#" len(channel_name) <= 3000"#).unwrap(),
         ) {
             Ok(r) => {
                 if r.len() != 1 {
