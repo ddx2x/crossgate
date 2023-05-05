@@ -277,8 +277,8 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
             match cmp {
                 condition::Compare::Eq => len == Some(real),
                 condition::Compare::Ne => len != Some(real),
-                condition::Compare::Gt => len > Some(real),
-                condition::Compare::Gte => len >= Some(real),
+                condition::Compare::Gt => Some(real) > len,
+                condition::Compare::Gte => Some(real) >= len,
                 condition::Compare::Lt => Some(real) < len,
                 condition::Compare::Lte => Some(real) <= len,
             }
@@ -692,7 +692,10 @@ mod tests {
 
         match matchs(
             &mut datas.clone(),
-            parse(r#" len(channel_name) <= 3000"#).unwrap(),
+            parse(
+                r#" len(channel_name) >=2 && len(channel_name) <=64 && level>=1 && level <=100 "#,
+            )
+            .unwrap(),
         ) {
             Ok(r) => {
                 if r.len() != 1 {
