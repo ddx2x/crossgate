@@ -28,6 +28,10 @@ macro_rules! here {
 pub struct Unstructed(Map<String, Value>);
 
 impl Unstructed {
+    pub fn new() -> Unstructed {
+        Unstructed(Map::new())
+    }
+
     pub fn set(&mut self, path: &str, value: &Value) {
         dict::set(&mut self.0, &path.to_string(), value);
     }
@@ -90,6 +94,24 @@ impl Unstructed {
         self.set(&dst, &self.get(&src));
         self
     }
+}
+
+#[macro_export]
+macro_rules! unstructed {
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$(unstructed!(@single $rest)),*]));
+
+    ($($key:expr => $value:expr,)+) => { unstructed!($($key => $value),+) };
+    ($($key:expr => $value:expr),*) => {
+        {
+            let _ = unstructed!(@count $($key),*);
+            let mut _item = crossgate::utils::Unstructed::new();
+            $(
+                let _ = _item.set($key, &serde_json::json!($value));
+            )*
+            _item
+        }
+    };
 }
 
 // 参数检查
@@ -185,5 +207,19 @@ mod tests {
             &[("a=1", "a 必须等于1", true), ("a!=1", "a 必须等于1", false)],
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_macro() {
+        let item = unstructed! {
+            "a" => 1,
+            "b" => 2,
+            "g" => "abc",
+            "z" => vec![1,2,3]
+        };
+
+        assert_eq!(item.get_by_type::<u64>("a", 0), 1);
+        assert_eq!(item.get_by_type::<String>("g", "".into()), "abc");
+        assert_eq!(item.get_by_type::<Vec<i32>>("z", vec![]), vec![1, 2, 3]);
     }
 }
