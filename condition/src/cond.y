@@ -35,8 +35,8 @@ LenExpr -> Expr:
     'LEN''('Ident')' '='  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Eq, value: Value::Number($6) } }
   | 'LEN''('Ident')' '>=' Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Gte, value: Value::Number($6) } }
   | 'LEN''('Ident')' '<=' Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Lte, value: Value::Number($6) } }
-  | 'LEN''('Ident')' '>'  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Lt, value: Value::Number($6) } }
-  | 'LEN''('Ident')' '<'  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Gt, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '>'  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Gt, value: Value::Number($6) } }
+  | 'LEN''('Ident')' '<'  Number   { Expr::Len { span: $span, field: $3, cmp: Compare::Lt, value: Value::Number($6) } }
   | 'LEN''('Ident')' '!='  Number  { Expr::Len { span: $span, field: $3, cmp: Compare::Ne, value: Value::Number($6) } }
   | 'LEN''('Ident')' '<>'  Number  { Expr::Len { span: $span, field: $3, cmp: Compare::Ne, value: Value::Number($6) } }
   ;

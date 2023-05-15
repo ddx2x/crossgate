@@ -104,8 +104,10 @@ macro_rules! unstructed {
     ($($key:expr => $value:expr,)+) => { unstructed!($($key => $value),+) };
     ($($key:expr => $value:expr),*) => {
         {
+            // ignore this error, we don't care
+            use crossgate::utils::Unstructed;
             let _ = unstructed!(@count $($key),*);
-            let mut _item = crossgate::utils::Unstructed::new();
+            let mut _item = Unstructed::new();
             $(
                 let _ = _item.set($key, &serde_json::json!($value));
             )*

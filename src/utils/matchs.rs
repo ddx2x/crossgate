@@ -706,5 +706,16 @@ mod tests {
             }
             Err(e) => panic!("simulation data error: {}", e),
         }
+
+        match matchs(&mut datas.clone(), parse(r#" len(uid) > 0"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
     }
 }
