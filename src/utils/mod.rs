@@ -96,22 +96,20 @@ impl Unstructed {
     }
 }
 
+// E: When using this macro, be careful to quote serde_json
+// C: 使用这个宏时，请注意引用serde_json
 #[macro_export]
 macro_rules! unstructed {
     (@single $($x:tt)*) => (());
     (@count $($rest:expr),*) => (<[()]>::len(&[$(unstructed!(@single $rest)),*]));
-
     ($($key:expr => $value:expr,)+) => { unstructed!($($key => $value),+) };
     ($($key:expr => $value:expr),*) => {
         {
-            // ignore this error, we don't care
-            use crossgate::utils::Unstructed;
-            let _ = unstructed!(@count $($key),*);
-            let mut _item = Unstructed::new();
+            let mut item = $crate::utils::Unstructed::new();
             $(
-                let _ = _item.set($key, &serde_json::json!($value));
+                item.set($key, &serde_json::json!($value));
             )*
-            _item
+            item
         }
     };
 }
