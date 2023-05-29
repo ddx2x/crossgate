@@ -1,6 +1,6 @@
 use condition::parse;
-use serde::de::DeserializeOwned;
-use serde_json::{Map, Value};
+use serde::{de::DeserializeOwned, Serialize};
+use serde_json::{json, Map, Value};
 
 use self::value::map_get;
 
@@ -38,6 +38,17 @@ impl Unstructed {
 
     pub fn get(&self, path: &str) -> Value {
         dict::get(&self.0, &path.to_string())
+    }
+
+    pub fn set_value<T: Serialize>(&mut self, path: &str, value: T) {
+        dict::set(&mut self.0, &path.to_string(), &json!(value));
+    }
+
+    pub fn get_value<T: DeserializeOwned>(&mut self, path: &str) -> anyhow::Result<T> {
+        Ok(serde_json::from_value::<T>(dict::get(
+            &self.0,
+            &path.to_string(),
+        ))?)
     }
 
     pub fn remove(&mut self, path: &str) {
@@ -211,15 +222,23 @@ mod tests {
 
     #[test]
     fn test_macro() {
-        let item = unstructed! {
+        let mut items: crate::utils::Unstructed = unstructed! {
             "a" => 1,
             "b" => 2,
             "g" => "abc",
             "z" => vec![1,2,3]
         };
 
-        assert_eq!(item.get_by_type::<u64>("a", 0), 1);
-        assert_eq!(item.get_by_type::<String>("g", "".into()), "abc");
-        assert_eq!(item.get_by_type::<Vec<i32>>("z", vec![]), vec![1, 2, 3]);
+        items.set_value("a1", 1);
+        items.set_value("b1", "wudada");
+
+        assert_eq!(items.get_by_type::<u64>("a", 0), 1);
+        assert_eq!(items.get_by_type::<String>("g", "".into()), "abc");
+        assert_eq!(items.get_by_type::<Vec<i32>>("z", vec![]), vec![1, 2, 3]);
+        assert_eq!(items.get_by_type::<u64>("a1", 0), 1);
+        assert_eq!(
+            items.get_by_type::<String>("b1", "".into()),
+            "wudada".to_string()
+        );
     }
 }
