@@ -52,8 +52,8 @@ impl MongoStore {
         dotenv::dotenv().ok();
 
         let max_pool_size: u32 = env::var("MAX_POOL_SIZE")
-            .map_err(|e| StoreError::OtherError(e.to_string()))?
-            .parse()
+            .unwrap_or("100".to_string())
+            .parse::<u32>()
             .unwrap_or(100);
 
         match mongodb::options::ClientOptions::parse_with_resolver_config(
@@ -65,7 +65,7 @@ impl MongoStore {
             Ok(mut options) => {
                 options.min_pool_size = Some(1);
                 options.max_pool_size = Some(max_pool_size);
-                
+
                 let client = Client::with_options(options).unwrap();
                 Ok(Self { client })
             }
