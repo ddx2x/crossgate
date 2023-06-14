@@ -76,6 +76,14 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     fn count<'r, T>(self, q: Condition<F>) -> Self::CountFuture<'r, T>
     where
         T: MongoDbModel;
+
+    type UpdateManyFuture<'a, T>: Future<Output = Result<u32>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+    fn update_many_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateManyFuture<'r, T>
+    where
+        T: MongoDbModel;
 }
 
 pub trait MongoStorageAggregationExtends: Sync + Send + Clone + 'static {

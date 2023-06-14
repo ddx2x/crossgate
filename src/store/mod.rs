@@ -110,4 +110,10 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     where
         Self: 'a;
     fn count<'r>(self, q: Condition<F>) -> Self::CountFuture<'r>;
+
+    type UpdateManyFuture<'a>: Future<Output = Result<u32>>
+    where
+        Self: 'a;
+    fn update_many<'r>(self, t: T, q: Condition<F>) -> Self::UpdateManyFuture<'r>;
+
 }

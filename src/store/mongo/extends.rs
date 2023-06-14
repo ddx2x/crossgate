@@ -469,6 +469,52 @@ where
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
         }
     }
+
+    type UpdateManyFuture<'a, T>= impl Future<Output = Result<u32>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn update_many_any_type<'r, T>(self, t: T, q: Condition<F>) -> Self::UpdateManyFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let Condition {
+            db,
+            table,
+            filter,
+            fields,
+            update_version,
+            ..
+        } = q;
+
+        let c = self.collection::<T>(&db, &table);
+
+        async move {
+            let options = UpdateOptions::builder().upsert(false).build();
+            let mut update = doc! {};
+            let mut map = value_to_map(&t).map_err(|e| StoreError::OtherError(e.to_string()))?;
+            for field in fields {
+                update.insert(
+                    field.clone(),
+                    bson::to_bson(&get(&mut map, &field))
+                        .map_err(|e| StoreError::ConnectionError(e.to_string()))?,
+                );
+            }
+
+            if update_version {
+                update.insert("version", Bson::Int64(current_time_sess() as i64));
+            }
+
+            let filter = filter.get_doc();
+            let res = c
+                .update_many(filter.clone(), doc! {"$set":update}, options)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
+
+            Ok(res.modified_count as u32)
+        }
+    }
 }
 
 impl MongoStorageAggregationExtends for MongoStore {
