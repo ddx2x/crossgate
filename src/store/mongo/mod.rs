@@ -320,7 +320,7 @@ where
         let block = async move {
             let mut t = t;
 
-            t.uid().is_empty().then(|| t.set_uid(&uuid()));
+            t.update_uid(&uuid());
 
             let insert_one_result = c
                 .insert_one(t, None)
@@ -368,7 +368,7 @@ where
             }
 
             if let Ok(mut update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
-                update.set_version(current_time_sess());
+                update.update_version(current_time_sess());
 
                 let _ = c
                     .replace_one(filter, &update, None)

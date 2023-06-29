@@ -9,7 +9,7 @@ use crate::{
 
 use super::Service;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct MongoStoreService<T>(pub Service<T, MongoFilter, MongoStore>)
 where
     T: Object + Serialize + Debug + DeserializeOwned + std::marker::Unpin;
@@ -26,9 +26,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::object::{decorate, Object};
+    use crate::object::{metadata, Object};
 
-    #[decorate]
+    #[metadata(id)]
     struct Test {}
 
     #[tokio::test]

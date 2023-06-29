@@ -1,10 +1,10 @@
-pub use helper::decorate;
+pub use helper::metadata;
 
 pub trait Object: Clone + Send + Sync + 'static {
     fn uid(&self) -> &str;
     fn version(&self) -> u64;
     fn kind(&self) -> &str;
 
-    fn set_uid(&mut self, id: &str);
-    fn set_version(&mut self, version: u64);
+    fn update_uid(&mut self, id: &str);
+    fn update_version(&mut self, version: u64);
 }

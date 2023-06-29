@@ -12,7 +12,7 @@ pub trait MongoDbModel: Sync + Send + Unpin + serde::Serialize + DeserializeOwne
 impl MongoDbModel for utils::Unstructed {}
 
 pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
-    type ListFuture<'a, T>: Future<Output = Result<Vec<T>>>
+    type ListFuture<'a, T>: Future<Output = Result<Option<Vec<T>>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -29,7 +29,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type ApplyFuture<'a, T>: Future<Output = Result<T>>
+    type ApplyFuture<'a, T>: Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -53,7 +53,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
     where
         T: MongoDbModel;
 
-    type GetFuture<'a, T>: Future<Output = Result<T>>
+    type GetFuture<'a, T>: Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -87,7 +87,7 @@ pub trait MongoStorageExtends<F: Filter>: Sync + Send + Clone + 'static {
 }
 
 pub trait MongoStorageAggregationExtends: Sync + Send + Clone + 'static {
-    type AggregationListFuture<'a, T>: Future<Output = Result<Vec<T>>>
+    type AggregationListFuture<'a, T>: Future<Output = Result<Option<Vec<T>>>>
     where
         Self: 'a,
         T: MongoDbModel;

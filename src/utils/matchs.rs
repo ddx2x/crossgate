@@ -1,8 +1,5 @@
-use std::collections::HashSet;
-
 use condition::Expr;
 use serde_json::Value;
-
 use super::Unstructed;
 
 pub fn match_by_predicate<'a>(
@@ -314,7 +311,6 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
 
             return false;
         }
-        _ => false,
     }
 }
 
@@ -323,7 +319,6 @@ mod tests {
     use super::matchs;
     use crate::utils::from_str;
     use condition::parse;
-    use serde_json::json;
 
     #[test]
     fn test_eq() {

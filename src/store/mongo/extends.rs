@@ -28,7 +28,7 @@ impl<F> MongoStorageExtends<F> for MongoStore
 where
     F: Filter + GetFilter,
 {
-    type ListFuture<'a,T> = impl Future<Output = Result<Vec<T>>>
+    type ListFuture<'a,T> = impl Future<Output = Result<Option<Vec<T>>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -95,7 +95,7 @@ where
                 items.push(item);
             }
 
-            Ok(items)
+            Ok(Some(items))
         }
     }
 
@@ -133,7 +133,7 @@ where
         block
     }
 
-    type ApplyFuture<'a, T> = impl Future<Output = Result<T>>
+    type ApplyFuture<'a, T> = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -165,7 +165,7 @@ where
                     .insert_one(&t, None)
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
-                return Ok(t);
+                return Ok(Some(t));
             }
 
             if let Ok(update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
@@ -173,10 +173,10 @@ where
                     .replace_one(filter, &update, None)
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
-                return Ok(update);
+                return Ok(Some(t));
             }
 
-            return Ok(t);
+            return Ok(Some(t));
         };
 
         block
@@ -207,7 +207,7 @@ where
         block
     }
 
-    type GetFuture<'a, T> = impl Future<Output = Result<T>>
+    type GetFuture<'a, T> = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -240,10 +240,10 @@ where
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?
             {
-                return Ok(value);
+                return Ok(Some(value));
             }
 
-            return Err(StoreError::DataNotFound.into());
+            return Ok(None);
         };
 
         block
@@ -518,7 +518,7 @@ where
 }
 
 impl MongoStorageAggregationExtends for MongoStore {
-    type AggregationListFuture<'a, T> =  impl Future<Output = Result<Vec<T>>>
+    type AggregationListFuture<'a, T> =  impl Future<Output = Result<Option<Vec<T>>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -559,7 +559,7 @@ impl MongoStorageAggregationExtends for MongoStore {
                 );
             }
 
-            Ok(rs)
+            Ok(Some(rs))
         };
 
         block

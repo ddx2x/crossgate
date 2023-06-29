@@ -21,7 +21,6 @@ pub fn unixtime_to_date(unixtime: i64) -> String {
 mod test {
     use crate::utils::time::date_to_unixtime_range;
 
-
     #[test]
     fn unix_timestamp_u64() {
         let (start, end) = date_to_unixtime_range("2021-01-01");
