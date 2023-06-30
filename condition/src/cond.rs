@@ -93,7 +93,7 @@ pub enum Expr {
         cmp: Compare,
         value: Value,
     },
-    Belong{
+    Belong {
         span: Span,
         field: String,
         value: Value,
@@ -310,6 +310,14 @@ mod tests {
     fn test_belong() {
         // a ∈ (1,2,3)
         match parse("a << (1,2,3)") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+    }
+
+    #[test]
+    fn test_string_compare() {
+        match parse("a >= 'abc'") {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
         };

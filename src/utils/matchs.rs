@@ -1,6 +1,6 @@
+use super::Unstructed;
 use condition::Expr;
 use serde_json::Value;
-use super::Unstructed;
 
 pub fn match_by_predicate<'a>(
     unstructeds: &'a mut Vec<Unstructed>,
@@ -95,6 +95,12 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                         }
                         return false;
                     }
+                    condition::Value::Text(t) => {
+                        if let Value::String(s) = s {
+                            return s.gt(t);
+                        }
+                        return false;
+                    }
                     _ => return false,
                 }
             }
@@ -107,6 +113,12 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                     condition::Value::Number(t) => {
                         if let Value::Number(s) = s {
                             return s.as_f64() >= t.as_f64();
+                        }
+                        return false;
+                    }
+                    condition::Value::Text(t) => {
+                        if let Value::String(s) = s {
+                            return s.ge(t);
                         }
                         return false;
                     }
@@ -125,6 +137,12 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                         }
                         return false;
                     }
+                    condition::Value::Text(t) => {
+                        if let Value::String(s) = s {
+                            return s.lt(t);
+                        }
+                        return false;
+                    }
                     _ => return false,
                 }
             }
@@ -137,6 +155,12 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
                     condition::Value::Number(t) => {
                         if let Value::Number(s) = s {
                             return s.as_f64() <= t.as_f64();
+                        }
+                        return false;
+                    }
+                    condition::Value::Text(t) => {
+                        if let Value::String(s) = s {
+                            return s.le(t);
                         }
                         return false;
                     }
@@ -705,6 +729,72 @@ mod tests {
         match matchs(&mut datas.clone(), parse(r#" len(uid) > 0"#).unwrap()) {
             Ok(r) => {
                 if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_string_compare() {
+        let datas = vec![
+            from_str(
+                r#"
+        {
+            "uid": "2"
+        }
+        "#,
+            )
+            .unwrap(),
+            from_str(
+                r#"
+        {
+            "uid": "1"
+        }
+        "#,
+            )
+            .unwrap(),
+        ];
+
+        match matchs(&mut datas.clone(), parse(r#"uid > '1'"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+
+        match matchs(&mut datas.clone(), parse(r#"uid >= '1'"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 2 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+
+        match matchs(&mut datas.clone(), parse(r#"uid < '2'"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+
+                println!("test data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+
+        match matchs(&mut datas.clone(), parse(r#"uid <= '2'"#).unwrap()) {
+            Ok(r) => {
+                if r.len() != 2 {
                     panic!("Inconsistent expected results")
                 }
 
