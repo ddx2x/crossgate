@@ -24,18 +24,21 @@ pub fn metadata(mut uid_field_name: TokenStream, input: TokenStream) -> TokenStr
             syn::Field::parse_named
                 .parse2(quote! {
                    #[serde(default)]
+                   #[builder(default = bson::oid::ObjectId::new().to_string())]
                    pub #uid_field_name: String
                 })
                 .unwrap(),
             syn::Field::parse_named
                 .parse2(quote! {
                     #[serde(default)]
+                    #[builder(default = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs())]
                     pub version: u64
                 })
                 .unwrap(),
             syn::Field::parse_named
                 .parse2(quote! {
                     #[serde(default=#kind_name_str)]
+                    #[builder(default = #kind_name_str.to_string())]
                     pub kind: String
                 })
                 .unwrap(),
@@ -43,7 +46,8 @@ pub fn metadata(mut uid_field_name: TokenStream, input: TokenStream) -> TokenStr
     }
 
     quote! {
-        #[derive(Debug,Clone,serde::Deserialize,serde::Serialize)]
+        #[derive(Debug,Clone,serde::Deserialize,serde::Serialize,typed_builder::TypedBuilder)]
+        #[builder(field_defaults(default))]
         pub #item_struct
 
         impl Object for #name {

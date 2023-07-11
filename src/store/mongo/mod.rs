@@ -18,7 +18,9 @@ use bson::oid::ObjectId;
 use bson::{doc, Bson, Document};
 
 use futures::{Future, TryStreamExt};
-use mongodb::options::{ChangeStreamOptions, FindOptions, FullDocumentType, UpdateOptions};
+use mongodb::options::{
+    ChangeStreamOptions, FindOptions, FullDocumentType, TransactionOptions, UpdateOptions,
+};
 use mongodb::{change_stream, Client};
 use std::env;
 use std::fmt::Debug;

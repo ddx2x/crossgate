@@ -29,10 +29,17 @@ mod tests {
     use crate::object::{metadata, Object};
 
     #[metadata(id)]
-    struct Test {}
+    struct Test {
+        name: String,
+        age: u8,
+    }
 
     #[tokio::test]
     async fn mongo_store_example() {
+        let t = Test::builder().name("123".into()).age(1).build();
+
+        println!("{:#?}", t);
+
         if let Ok(store) = MongoStore::new(r#"mongodb://localhost:27017"#).await {
             let _ = MongoStoreService::<Test>::new("test", "test", store);
         } else {
