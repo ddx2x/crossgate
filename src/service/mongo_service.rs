@@ -26,12 +26,19 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::object::{metadata, Object};
+    use crate::{
+        object::{metadata, Object},
+        unstructed,
+        utils::Unstructed,
+    };
 
     #[metadata(id)]
     struct Test {
         name: String,
         age: u8,
+
+        #[builder(default = unstructed!())]
+        o: Unstructed,
     }
 
     #[tokio::test]

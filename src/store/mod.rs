@@ -31,7 +31,7 @@ pub fn current_time_sess() -> u64 {
         .as_secs()
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Event<T> {
     Added(T),
     Updated(T),
@@ -115,5 +115,4 @@ pub trait Storage<T: Object, F: Filter>: Sync + Send + Clone + 'static {
     where
         Self: 'a;
     fn update_many<'r>(self, t: T, q: Condition<F>) -> Self::UpdateManyFuture<'r>;
-
 }
