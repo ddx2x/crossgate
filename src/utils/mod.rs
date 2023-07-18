@@ -140,7 +140,7 @@ pub fn validate(item: &Unstructed, rules: &[(&str, &str, bool)]) -> anyhow::Resu
                 if (*and_non && rs) || (!and_non && !rs) {
                     continue;
                 }
-                return Err(resp.to_owned().to_owned());
+                return Err(resp.to_string());
             }
             Err(e) => return Err(format!("validate failed: {}", e.to_string())),
         }
@@ -155,11 +155,44 @@ pub fn validates(items: &[(&Unstructed, &str, &str, bool)]) -> anyhow::Result<()
                 if (*and_non && rs) || (!and_non && !rs) {
                     continue;
                 }
-                return Err(resp.to_owned().to_owned());
+                return Err(resp.to_string());
             }
             Err(e) => return Err(format!("validate failed: {}", e.to_string())),
         }
     }
+    Ok(())
+}
+
+// 参数检查针对字段的参数检查，适用于更新时，只检查更新的字段
+// {"a":1,"b":2,"c":3} , fields: ["a", "b"], rules: [a=1,b=2]
+pub fn validate_field(
+    item: &Unstructed,
+    fields: &[&str],
+    rules: &[&str],
+    resp: &str,
+    and_non: bool,
+) -> anyhow::Result<(), String> {
+    if fields.len() != rules.len() {
+        return Err("fields and rules length not equal".to_string());
+    }
+    let mut index = 0;
+
+    for field in fields.into_iter() {
+        match item
+            .cut(vec![field.to_string()])
+            .match_by_predicate(rules[index])
+        {
+            Ok(boolean) => {
+                if (and_non && boolean) || (!and_non && !boolean) {
+                    index += 1;
+                    continue;
+                }
+                return Err(resp.to_string());
+            }
+            Err(e) => return Err(format!("validate failed: {}", e.to_string())),
+        }
+    }
+
     Ok(())
 }
 
@@ -240,5 +273,25 @@ mod tests {
             items.get_by_type::<String>("b1", "".into()),
             "wudada".to_string()
         );
+    }
+
+    #[test]
+    fn test_validate_field() {
+        let items = unstructed! {
+            "a" => 1,
+            "b" => 2,
+            "g" => "abc",
+            "z" => vec![1,2,3]
+        };
+
+        if let Err(e) = super::validate_field(
+            &items,
+            &["a", "b"],
+            &["a=1", "b=2"],
+            "a 必须等于1或者b=2",
+            true,
+        ) {
+            assert!(false, "{}", e)
+        }
     }
 }
