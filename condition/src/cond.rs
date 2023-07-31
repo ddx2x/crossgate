@@ -98,6 +98,11 @@ pub enum Expr {
         field: String,
         value: Value,
     },
+    NoBelong {
+        span: Span,
+        field: String,
+        value: Value,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -310,6 +315,15 @@ mod tests {
     fn test_belong() {
         // a ∈ (1,2,3)
         match parse("a << (1,2,3)") {
+            Ok(rs) => println!("{:#?}", rs),
+            Err(e) => panic!("{}", e),
+        };
+    }
+
+    #[test]
+    fn test_nobelong() {
+        // a ∈/ (1,2,3)
+        match parse("a >> (1,2,3)") {
             Ok(rs) => println!("{:#?}", rs),
             Err(e) => panic!("{}", e),
         };

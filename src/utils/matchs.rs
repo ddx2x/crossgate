@@ -335,6 +335,37 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
 
             return false;
         }
+        Expr::NoBelong { field, value, .. } => {
+            if let condition::Value::List(rhs_list) = value {
+                let lhs_list = unstructed.get_by_type::<Vec<Value>>(&field, vec![]);
+                if lhs_list.len() == 0 || rhs_list.len() == 0 {
+                    return false;
+                }
+
+                let rhs_list = rhs_list
+                    .iter()
+                    .map(|item| match item {
+                        condition::Value::Text(v) => Value::String(v.clone()),
+                        condition::Value::Number(v) => Value::Number(v.clone()),
+                        _ => Value::Null,
+                    })
+                    .collect::<Vec<_>>();
+
+                let mut hits = vec![];
+
+                let include = for<'a> |item: &'a Value, set: Vec<Value>| -> bool {
+                    return set.contains(&item);
+                };
+
+                //[1,4] << [1,2,3] => true  左边的元素不属于右边的元素
+                for lhs in lhs_list {
+                    hits.push(include(&lhs, rhs_list.clone()));
+                }
+                return hits.contains(&false);
+            }
+
+            return true;
+        }
     }
 }
 
@@ -651,6 +682,33 @@ mod tests {
                 }
 
                 println!("test_belong data {:?}", r);
+            }
+            Err(e) => panic!("simulation data error: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_no_belong() {
+        // [1,4] >> [1,2,3]  左边的元素不属于右边的元素
+        let datas = vec![from_str(r#"{"alist":[1,4]}"#).unwrap()];
+        match matchs(&mut datas.clone(), parse(r#"alist >> (1,2,3)"#).unwrap()) {
+            Ok(r) => {
+                println!("test_nobelong data {:?}", r);
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
+            }
+            Err(e) => eprintln!("simulation data error: {}", e),
+        }
+
+        // [4] >> [1,2,3]  左边的元素不属于右边的元素
+        let datas = vec![from_str(r#"{"alist":[4]}"#).unwrap()];
+        match matchs(&mut datas.clone(), parse(r#"alist >> (1,2,3)"#).unwrap()) {
+            Ok(r) => {
+                println!("test_nobelong data {:?}", r);
+                if r.len() != 1 {
+                    panic!("Inconsistent expected results")
+                }
             }
             Err(e) => panic!("simulation data error: {}", e),
         }

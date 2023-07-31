@@ -1,5 +1,5 @@
 %start Expr
-%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY' 'IS' 'IS_NOT' 'NULL' 'LEN' 'BELONG'
+%token STRING NUMBER IDENT '>=' '<=' '>' '<' '<>' '!=' '(' ')' 'BOOL' 'LIKE' 'NLIKE' 'IN' 'NIN' 'NUMBER_ARRAY' 'STRING_ARRAY' 'IS' 'IS_NOT' 'NULL' 'LEN' 'BELONG' 'NO_BELONG'
 %left '||'
 %right '&&'
 
@@ -81,6 +81,8 @@ NumberCompare -> Expr:
 BelongCompare -> Expr:
     Ident 'BELONG'  TextArray { Expr::Belong { span: $span, field: $1, value: $3 } }
   | Ident 'BELONG'  IntArray  { Expr::Belong { span: $span, field: $1, value: $3 } }
+  | Ident 'NO_BELONG'  TextArray { Expr::NoBelong { span: $span, field: $1, value: $3 } }
+  | Ident 'NO_BELONG'  IntArray  { Expr::NoBelong { span: $span, field: $1, value: $3 } }
   ;
 
 Text -> String:
