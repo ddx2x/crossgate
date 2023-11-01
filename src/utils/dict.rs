@@ -17,12 +17,12 @@ where
     let mut updated = false;
 
     for field in fields {
-        if !compare_and_merge_value(&mut old_map, &mut new_map, &field) {
+        if compare_and_merge_value(&mut old_map, &mut new_map, &field) {
             updated = true;
         }
     }
 
-    if updated {
+    if !updated {
         return Err(anyhow::anyhow!("not update"));
     }
 
