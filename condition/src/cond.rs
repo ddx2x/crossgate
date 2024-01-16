@@ -115,7 +115,7 @@ pub enum Value {
     Null,
 }
 
-pub fn parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
+pub fn yacc_parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
     let lexerdef = cond_l::lexerdef();
 
     let binding = s.to_string();
@@ -143,7 +143,7 @@ pub fn parse<'a, S: ToString + ?Sized>(s: &'a S) -> anyhow::Result<Expr> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse;
+    use super::yacc_parse as parse;
 
     #[test]
     fn test_base() {

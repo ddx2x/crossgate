@@ -1,5 +1,5 @@
 mod filter;
-use condition::parse;
+use condition::yacc_parse as parse;
 pub use filter::MongoFilter;
 use mongodb::change_stream::event::ChangeStreamEvent;
 mod extends;

@@ -5,7 +5,7 @@ use crate::utils::dict::{from_unstructed_to_type, from_value_to_unstructed, get,
 use crate::utils::Unstructed;
 use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::compare_and_merge};
 use bson::{doc, Bson, Document, Uuid};
-use condition::{parse, Value};
+use condition::{yacc_parse as parse, Value};
 use futures::{Future, TryStreamExt};
 use mongodb::change_stream;
 use mongodb::options::{AggregateOptions, FindOneOptions, UpdateOptions};

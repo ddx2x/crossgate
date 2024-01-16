@@ -6,7 +6,7 @@ pub fn match_by_predicate<'a>(
     unstructeds: &'a mut Vec<Unstructed>,
     predicate: &str,
 ) -> anyhow::Result<&'a mut Vec<Unstructed>> {
-    matchs(unstructeds, condition::parse(predicate)?)
+    matchs(unstructeds, condition::yacc_parse(predicate)?)
 }
 
 pub fn matchs<'a>(
@@ -373,7 +373,7 @@ fn filter(unstructed: &Unstructed, expr: &Expr) -> bool {
 mod tests {
     use super::matchs;
     use crate::utils::from_str;
-    use condition::parse;
+    use condition::yacc_parse as parse;
 
     #[test]
     fn test_eq() {

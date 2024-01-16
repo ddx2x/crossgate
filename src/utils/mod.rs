@@ -1,4 +1,4 @@
-use condition::parse;
+use condition::yacc_parse as parse;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Map, Value};
 

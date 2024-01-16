@@ -1,6 +1,6 @@
 use crate::store::Filter;
 use bson::{doc, Document};
-use condition::parse;
+use condition::yacc_parse as parse;
 use mongodb::bson::Bson;
 
 use super::GetFilter;
