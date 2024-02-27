@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use crate::store::Filter;
-use bson::{doc, Document};
+use bson::{doc, oid::ObjectId, Document};
 use condition::yacc_parse as parse;
 use mongodb::bson::Bson;
 
@@ -43,13 +45,18 @@ impl MongoFilter {
 
         if op == "$in" || op == "$nin" {
             let mut str_vec = vec![];
+            let mut object_id_vec = vec![];
             let mut number_vec = vec![];
 
             if let condition::Value::List(vs) = v {
                 for v in vs {
                     match v {
                         condition::Value::Text(v) => {
-                            str_vec.push(v.as_str().to_string());
+                            if k.eq("_id") {
+                                object_id_vec.push(ObjectId::from_str(v.as_str())?);
+                            } else {
+                                str_vec.push(v.as_str().to_string());
+                            }
                         }
                         condition::Value::Number(v) => {
                             if v.is_f64() {
@@ -73,15 +80,20 @@ impl MongoFilter {
                 return Err(anyhow::anyhow!("in op just only support list"));
             }
 
-            if str_vec.len() > 0 && number_vec.len() > 0 {
+            if (str_vec.len() > 0 && number_vec.len() > 0)
+                || (str_vec.len() > 0 && object_id_vec.len() > 0)
+                || (number_vec.len() > 0 && object_id_vec.len() > 0)
+            {
                 return Err(anyhow::anyhow!(
                     "only supports the same type of int or charts in the list"
                 ));
             }
 
-            if str_vec.len() > 0 {
+            if object_id_vec.len() > 0 {
+                doc.insert(k, doc! {op:object_id_vec});
+            } else if str_vec.len() > 0 {
                 doc.insert(k, doc! {op:str_vec});
-            } else {
+            } else if number_vec.len() > 0 {
                 doc.insert(k, doc! {op:number_vec});
             }
 
@@ -99,7 +111,13 @@ impl MongoFilter {
         }
 
         doc = match v {
-            condition::Value::Text(v) => doc! {k:doc! {op:v.as_str().to_string()}},
+            condition::Value::Text(v) => {
+                if k.eq("_id") {
+                    doc! {k:doc! {op:ObjectId::from_str(v.as_str())?}}
+                } else {
+                    doc! {k:doc! {op:v.as_str().to_string()}}
+                }
+            }
             condition::Value::Number(v) => {
                 let mut value: Bson = Bson::Null;
                 if v.is_f64() {
