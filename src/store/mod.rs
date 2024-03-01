@@ -66,6 +66,8 @@ where
 }
 
 pub trait Filter: Clone + Debug {
+    fn enable_convert(&mut self) -> &mut Self;
+
     fn parse<S: ToString + ?Sized>(&mut self, input: &S) -> anyhow::Result<Box<Self>>;
 }
 

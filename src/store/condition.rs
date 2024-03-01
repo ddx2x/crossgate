@@ -26,6 +26,7 @@ pub struct Condition<T: Filter> {
     pub filter: T,
     pub(crate) update_version: bool,
     pub(crate) pageable: bool,
+    pub(crate) enable_convert: bool, // 隐含转换，例如 _id => ObjectId
 }
 
 impl<T> Condition<T>
@@ -43,6 +44,7 @@ where
             sorts: Default::default(),
             fields: Default::default(),
             filter: t,
+            enable_convert: false,
         }
     }
     pub fn with_db(&mut self, db: &str) -> &mut Condition<T> {
@@ -80,7 +82,14 @@ where
         self.update_version = update_version;
         self
     }
-    
+
+    // 隐含转换
+    pub fn enable_convert(&mut self) -> &mut Condition<T> {
+        self.enable_convert = true;
+        self.filter.enable_convert();
+        self
+    }
+
     pub fn wheres<S: ToString + ?Sized>(&mut self, input: &S) -> anyhow::Result<&mut Self> {
         self.filter.parse(&input.to_string())?;
         Ok(self)

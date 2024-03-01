@@ -31,7 +31,7 @@ use serde::Serialize;
 use tokio::sync::mpsc::Receiver;
 
 pub fn new_mongo_condition() -> Condition<MongoFilter> {
-    Condition::new(MongoFilter(doc! {}, "".to_string()))
+    Condition::new(MongoFilter(doc! {}, "".to_string(), false))
 }
 
 fn uuid() -> String {

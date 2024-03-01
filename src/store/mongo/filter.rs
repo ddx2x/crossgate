@@ -20,10 +20,15 @@ pub enum MongoOp {
     NotIn,
 }
 #[derive(Clone, Debug)]
-pub struct MongoFilter(pub Document, pub String);
+pub struct MongoFilter(pub Document, pub String, pub bool);
 
 impl MongoFilter {
-    fn gen_doc(k: &str, v: &condition::Value, op: MongoOp) -> anyhow::Result<Document> {
+    fn gen_doc(
+        enable_convert: &bool,
+        k: &str,
+        v: &condition::Value,
+        op: MongoOp,
+    ) -> anyhow::Result<Document> {
         let op = match op {
             MongoOp::Eq => "$eq",
             MongoOp::Gt => "$gt",
@@ -52,7 +57,8 @@ impl MongoFilter {
                 for v in vs {
                     match v {
                         condition::Value::Text(v) => {
-                            if k.eq("_id") {
+                            println!("filter enable_convert: {}, k: {}", enable_convert, k);
+                            if *enable_convert && k.eq("_id") {
                                 object_id_vec.push(ObjectId::from_str(v.as_str())?);
                             } else {
                                 str_vec.push(v.as_str().to_string());
@@ -112,7 +118,9 @@ impl MongoFilter {
 
         doc = match v {
             condition::Value::Text(v) => {
-                if k.eq("_id") {
+                if *enable_convert && k.eq("_id") {
+
+                    println!("filter enable_convert: {}, k: {}", enable_convert, k);
                     doc! {k:doc! {op:ObjectId::from_str(v.as_str())?}}
                 } else {
                     doc! {k:doc! {op:v.as_str().to_string()}}
@@ -161,70 +169,85 @@ impl MongoFilter {
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::Eq)?);
+                    docs.push(Self::gen_doc(&self.2, field.as_str(), value, MongoOp::Eq)?);
                 }
                 condition::Expr::Ne {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::Ne)?);
+                    docs.push(Self::gen_doc(&self.2, field.as_str(), value, MongoOp::Ne)?);
                 }
                 condition::Expr::Gt {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::Gt)?);
+                    docs.push(Self::gen_doc(&self.2, field.as_str(), value, MongoOp::Gt)?);
                 }
                 condition::Expr::Gte {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::Gte)?);
+                    docs.push(Self::gen_doc(&self.2, field.as_str(), value, MongoOp::Gte)?);
                 }
                 condition::Expr::Lt {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::Lt)?);
+                    docs.push(Self::gen_doc(&self.2, field.as_str(), value, MongoOp::Lt)?);
                 }
                 condition::Expr::Lte {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::Lte)?);
+                    docs.push(Self::gen_doc(&self.2, field.as_str(), value, MongoOp::Lte)?);
                 }
                 condition::Expr::Like {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::Like)?);
+                    docs.push(Self::gen_doc(
+                        &self.2,
+                        field.as_str(),
+                        value,
+                        MongoOp::Like,
+                    )?);
                 }
                 condition::Expr::NotLike {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::NotLike)?);
+                    docs.push(Self::gen_doc(
+                        &self.2,
+                        field.as_str(),
+                        value,
+                        MongoOp::NotLike,
+                    )?);
                 }
                 condition::Expr::In {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::In)?);
+                    docs.push(Self::gen_doc(&self.2, field.as_str(), value, MongoOp::In)?);
                 }
                 condition::Expr::NotIn {
                     span: _,
                     field,
                     value,
                 } => {
-                    docs.push(Self::gen_doc(field.as_str(), value, MongoOp::NotIn)?);
+                    docs.push(Self::gen_doc(
+                        &self.2,
+                        field.as_str(),
+                        value,
+                        MongoOp::NotIn,
+                    )?);
                 }
 
                 _ => return Err(anyhow::anyhow!("not support op")),
@@ -235,6 +258,11 @@ impl MongoFilter {
 }
 
 impl Filter for MongoFilter {
+    fn enable_convert(&mut self) -> &mut Self {
+        self.2 = true;
+        self
+    }
+
     fn parse<S: ToString + ?Sized>(&mut self, input: &S) -> anyhow::Result<Box<Self>> {
         let expr = match parse(input) {
             Ok(s) => s,
@@ -267,7 +295,7 @@ mod test {
     #[test]
     fn test_parse_cond() {
         let sym = "a=1 && b=2 || c=1 && b=2";
-        let mut mf = MongoFilter(doc! {}, sym.into());
+        let mut mf = MongoFilter(doc! {}, sym.into(), false);
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -277,7 +305,7 @@ mod test {
     #[test]
     fn test_parse_cond2() {
         let sym = "a=1 && (b=2||c=1) && b=2";
-        let mut mf = MongoFilter(doc! {}, sym.to_string());
+        let mut mf = MongoFilter(doc! {}, sym.to_string(), false);
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -287,7 +315,7 @@ mod test {
     #[test]
     fn test_parse_cond3() {
         let sym = r#"a=1 && (b="2" || c=1 && b='2')"#;
-        let mut mf = MongoFilter(doc! {}, sym.to_string());
+        let mut mf = MongoFilter(doc! {}, sym.to_string(), false);
         match mf.parse(sym) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -296,7 +324,7 @@ mod test {
 
     #[test]
     fn test_parse_in_notin() {
-        let mut mf = MongoFilter(doc! {}, "".to_string());
+        let mut mf = MongoFilter(doc! {}, "".to_string(), false);
         match mf.parse("a ~ (1,2,3,4)") {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -310,7 +338,7 @@ mod test {
 
     #[test]
     fn test_parse_like() {
-        let mut mf = MongoFilter(doc! {}, "".to_string());
+        let mut mf = MongoFilter(doc! {}, "".to_string(), false);
         match mf.parse("a ! '^1.2'") {
             // prefix 1.2
             Ok(c) => println!("{:?}", c),
@@ -320,7 +348,7 @@ mod test {
 
     #[test]
     fn test_parse_f64() {
-        let mut mf = MongoFilter(doc! {}, "".to_string());
+        let mut mf = MongoFilter(doc! {}, "".to_string(), false);
         match mf.parse("a = 1.2") {
             // prefix 1.2
             Ok(c) => println!("{:?}", c),
@@ -330,7 +358,7 @@ mod test {
 
     #[test]
     fn test_parse_strings() {
-        let mut mf = MongoFilter(doc! {}, "".to_string());
+        let mut mf = MongoFilter(doc! {}, "".to_string(), false);
         match mf.parse(r#"a = 1.2 || b = 'abc' ||c="cde""#) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
@@ -339,13 +367,13 @@ mod test {
 
     #[test]
     fn test_parse_in_strings() {
-        let mut mf = MongoFilter(doc! {}, "".to_string());
+        let mut mf = MongoFilter(doc! {}, "".to_string(), false);
         match mf.parse(r#"a ~ ("1","2")"#) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
         };
 
-        let mut mf = MongoFilter(doc! {}, "".to_string());
+        let mut mf = MongoFilter(doc! {}, "".to_string(), false);
         match mf.parse(r#"a ~ ('1','2')"#) {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
