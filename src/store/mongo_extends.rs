@@ -100,6 +100,20 @@ pub trait MongoStorageAggregationExtends: Sync + Send + Clone + 'static {
     ) -> Self::AggregationListFuture<'r, T>
     where
         T: MongoDbModel;
+
+    type AggregationFuture<'a, T>: Future<Output = Result<Option<T>>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn aggregate_one<'r, T>(
+        self,
+        db: String,
+        table: String,
+        q: Vec<Document>,
+    ) -> Self::AggregationFuture<'r, T>
+    where
+        T: MongoDbModel;
 }
 
 pub trait MongoStorageOpExtends<F: Filter>: Sync + Send + Clone + 'static {

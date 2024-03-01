@@ -564,6 +564,52 @@ impl MongoStorageAggregationExtends for MongoStore {
 
         block
     }
+
+    type AggregationFuture<'a, T> =  impl Future<Output = Result<Option<T>>>
+    where
+        Self: 'a,
+        T: MongoDbModel;
+
+    fn aggregate_one<'r, T>(
+        self,
+        db: String,
+        table: String,
+        q: Vec<Document>,
+    ) -> Self::AggregationFuture<'r, T>
+    where
+        T: MongoDbModel,
+    {
+        let client = self.client.clone();
+
+        let block = async move {
+            let options = Some(
+                AggregateOptions::builder()
+                    .allow_disk_use(Some(true))
+                    .build(),
+            );
+
+            let mut cursor = client
+                .database(&db)
+                .collection::<T>(&table)
+                .aggregate(q, options)
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
+
+            if let Some(item) = cursor
+                .try_next()
+                .await
+                .map_err(|e| StoreError::ConnectionError(e.to_string()))?
+            {
+                return Ok(Some(
+                    bson::from_document(item).map_err(|e| StoreError::OtherError(e.to_string()))?,
+                ));
+            }
+
+            Ok(None)
+        };
+
+        block
+    }
 }
 
 impl<F> MongoStorageOpExtends<F> for MongoStore
