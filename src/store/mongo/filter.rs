@@ -5,7 +5,7 @@ use bson::{doc, oid::ObjectId, Document};
 use condition::yacc_parse as parse;
 use mongodb::bson::Bson;
 
-use super::GetFilter;
+use super::{convert_to_mongodb_time, GetFilter};
 
 pub enum MongoOp {
     Eq,
@@ -52,17 +52,29 @@ impl MongoFilter {
             let mut str_vec = vec![];
             let mut object_id_vec = vec![];
             let mut number_vec = vec![];
+            let mut iosdate_vec = vec![];
 
             if let condition::Value::List(vs) = v {
                 for v in vs {
                     match v {
                         condition::Value::Text(v) => {
-                            println!("filter enable_convert: {}, k: {}", enable_convert, k);
+                            log::debug!("filter enable_convert: {}, k: {}", enable_convert, k);
                             if *enable_convert && k.eq("_id") {
                                 object_id_vec.push(ObjectId::from_str(v.as_str())?);
-                            } else {
-                                str_vec.push(v.as_str().to_string());
+                                continue;
                             }
+
+                            if v.starts_with("ISODate(") && v.ends_with(")") {
+                                // ISODate(2022-06-13 16:00:00) => mongodb: 2022-06-13T16:00:00Z
+                                let new_v = v.replace("ISODate(", "").replace(")", "");
+                                match convert_to_mongodb_time(&new_v) {
+                                    Ok(dt) => iosdate_vec.push(Bson::from(dt)),
+                                    Err(e) => return Err(anyhow::anyhow!("{:?}", e)),
+                                }
+                                continue;
+                            }
+
+                            str_vec.push(v.as_str().to_string());
                         }
                         condition::Value::Number(v) => {
                             if v.is_f64() {
@@ -101,6 +113,8 @@ impl MongoFilter {
                 doc.insert(k, doc! {op:str_vec});
             } else if number_vec.len() > 0 {
                 doc.insert(k, doc! {op:number_vec});
+            } else if iosdate_vec.len() > 0 {
+                doc.insert(k, doc! {op:iosdate_vec});
             }
 
             return Ok(doc);
@@ -119,11 +133,19 @@ impl MongoFilter {
         doc = match v {
             condition::Value::Text(v) => {
                 if *enable_convert && k.eq("_id") {
-
                     println!("filter enable_convert: {}, k: {}", enable_convert, k);
                     doc! {k:doc! {op:ObjectId::from_str(v.as_str())?}}
                 } else {
-                    doc! {k:doc! {op:v.as_str().to_string()}}
+                    if v.starts_with("ISODate(") && v.ends_with(")") {
+                        // ISODate(2022-06-13 16:00:00) => mongodb: 2022-06-13T16:00:00Z
+                        let new_v = v.replace("ISODate(", "").replace(")", "");
+                        match convert_to_mongodb_time(&new_v) {
+                            Ok(dt) => doc! {k:doc! {op:Bson::from(dt)}},
+                            Err(e) => return Err(anyhow::anyhow!("{:?}", e)),
+                        }
+                    } else {
+                        doc! {k:doc! {op:v.as_str().to_string()}}
+                    }
                 }
             }
             condition::Value::Number(v) => {
@@ -378,5 +400,20 @@ mod test {
             Ok(c) => println!("{:?}", c),
             Err(e) => panic!("{}", e),
         };
+    }
+
+    #[test]
+    fn test_parse_isodate() {
+        let mut mf = MongoFilter(doc! {}, "".to_string(), false);
+        match mf.parse(r#"a >= 'ISODate(2021-01-01 00:00:00)'"#) {
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        };
+
+        // a in ( ISODate(2021-01-01 00:00:00),ISODate(2021-02-01 00:00:00))
+        match mf.parse(r#"a ~ ('ISODate(2021-01-01 00:00:00)','ISODate(2021-02-01 00:00:00)')"#) {
+            Ok(c) => println!("{:?}", c),
+            Err(e) => panic!("{}", e),
+        }
     }
 }

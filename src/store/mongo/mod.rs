@@ -1,4 +1,5 @@
 mod filter;
+use chrono::NaiveDateTime;
 use condition::yacc_parse as parse;
 pub use filter::MongoFilter;
 use mongodb::change_stream::event::ChangeStreamEvent;
@@ -28,7 +29,20 @@ use std::fmt::Debug;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+use chrono::TimeZone;
 use tokio::sync::mpsc::Receiver;
+
+pub fn convert_to_mongodb_time(datetime_str: &str) -> anyhow::Result<bson::DateTime> {
+    let date_time: NaiveDateTime =
+        NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%d %H:%M:%S")?;
+
+    match chrono_tz::UCT.from_local_datetime(&date_time) {
+        chrono::LocalResult::None | chrono::LocalResult::Ambiguous(_, _) => {
+            return Err(anyhow::anyhow!("invalid datetime format"))
+        }
+        chrono::LocalResult::Single(dt) => return Ok(bson::DateTime::from_chrono(dt)),
+    }
+}
 
 pub fn new_mongo_condition() -> Condition<MongoFilter> {
     Condition::new(MongoFilter(doc! {}, "".to_string(), false))
@@ -52,11 +66,11 @@ pub struct MongoStore {
 impl MongoStore {
     pub async fn new(uri: &str) -> Result<Self> {
         dotenv::dotenv().ok();
-
-        let max_pool_size: u32 = env::var("MAX_POOL_SIZE")
+        let max_pool_size = env::var("MAX_POOL_SIZE")
             .unwrap_or("100".to_string())
             .parse::<u32>()
             .unwrap_or(100);
+        log::info!("max pool size: {}", max_pool_size);
 
         match mongodb::options::ClientOptions::parse_with_resolver_config(
             &uri,

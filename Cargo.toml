@@ -19,13 +19,18 @@ serde_repr = "0.1"
 regex = "1.7.0"
 lrpar = "0.13"
 
-chrono = "0.4"
+
+# 时间转换
+chrono = "0.4.19"
+chrono-tz = "0.8"
 
 dotenv = "0.15"
 
 async-recursion = "1"
 
 mongodb = "2"
+# 时间转换
+
 
 # log
 log = "0.4"
