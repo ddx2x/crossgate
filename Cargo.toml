@@ -28,7 +28,7 @@ dotenv = "0.15"
 
 async-recursion = "1"
 
-mongodb = "2"
+mongodb = "3.2.3"
 # 时间转换
 
 

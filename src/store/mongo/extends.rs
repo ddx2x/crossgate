@@ -7,6 +7,7 @@ use crate::{store::mongo_extends::MongoStorageAggregationExtends, utils::dict::c
 use bson::{doc, Bson, Document, Uuid};
 use condition::{yacc_parse as parse, Value};
 use futures::{Future, TryStreamExt};
+use mongodb::action::Action;
 use mongodb::change_stream;
 use mongodb::options::{AggregateOptions, FindOneOptions, UpdateOptions};
 use mongodb::{
@@ -28,7 +29,8 @@ impl<F> MongoStorageExtends<F> for MongoStore
 where
     F: Filter + GetFilter,
 {
-    type ListFuture<'a,T> = impl Future<Output = Result<Option<Vec<T>>>>
+    type ListFuture<'a, T>
+        = impl Future<Output = Result<Option<Vec<T>>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -81,7 +83,8 @@ where
             }
 
             let mut cursor = c
-                .find(filter.get_doc(), Some(opt))
+                .find(filter.get_doc())
+                .with_options(opt)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -99,7 +102,8 @@ where
         }
     }
 
-    type SaveFuture<'a,T> =  impl Future<Output = Result<Option<T>>>
+    type SaveFuture<'a, T>
+        = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -119,12 +123,12 @@ where
                 .map_err(|e| StoreError::OtherError(e.to_string()))?;
 
             let insert_one_result = c
-                .insert_one(t, None)
+                .insert_one(t)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             Ok(
-                c.find_one(doc! {"_id":insert_one_result.inserted_id.as_str()}, None)
+                c.find_one(doc! {"_id":insert_one_result.inserted_id.as_str()})
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?,
             )
@@ -133,7 +137,8 @@ where
         block
     }
 
-    type ApplyFuture<'a, T> = impl Future<Output = Result<Option<T>>>
+    type ApplyFuture<'a, T>
+        = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -156,13 +161,13 @@ where
         let block = async move {
             let filter = filter.get_doc();
             let old = c
-                .find_one(filter.clone(), None)
+                .find_one(filter.clone())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             if old.is_none() {
                 let _ = c
-                    .insert_one(&t, None)
+                    .insert_one(&t)
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(Some(t));
@@ -170,7 +175,7 @@ where
 
             if let Ok(update) = compare_and_merge(&mut old.unwrap(), &mut t, fields) {
                 let _ = c
-                    .replace_one(filter, &update, None)
+                    .replace_one(filter, &update)
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(Some(t));
@@ -182,7 +187,8 @@ where
         block
     }
 
-    type RemoveFuture<'a,T> = impl Future<Output = Result<()>>
+    type RemoveFuture<'a, T>
+        = impl Future<Output = Result<()>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -198,7 +204,7 @@ where
 
         let block = async move {
             let _ = c
-                .delete_many(filter.get_doc(), None)
+                .delete_many(filter.get_doc())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
             Ok(())
@@ -207,7 +213,8 @@ where
         block
     }
 
-    type GetFuture<'a, T> = impl Future<Output = Result<Option<T>>>
+    type GetFuture<'a, T>
+        = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -236,7 +243,8 @@ where
             }
 
             if let Some(value) = c
-                .find_one(filter.get_doc(), Some(opt))
+                .find_one(filter.get_doc())
+                .with_options(opt)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?
             {
@@ -249,10 +257,11 @@ where
         block
     }
 
-    type StreamFuture<'a, T> = impl Future<Output = Result<Receiver<Event<T>>>>
+    type StreamFuture<'a, T>
+        = impl Future<Output = Result<Receiver<Event<T>>>>
     where
         Self: 'a,
-        T: MongoDbModel+ 'static;
+        T: MongoDbModel + 'static;
 
     fn watch_any_type<'r, T>(
         self,
@@ -274,7 +283,7 @@ where
 
             let collection = client.database(&db).collection::<T>(&table);
             let mut cursor = collection
-                .find(filter_doc, None)
+                .find(filter_doc)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -283,7 +292,8 @@ where
                 .build();
 
             let mut stream = collection
-                .watch(None, options)
+                .watch()
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -400,7 +410,8 @@ where
         block
     }
 
-    type CountFuture<'a, T> = impl Future<Output = Result<u64>>
+    type CountFuture<'a, T>
+        = impl Future<Output = Result<u64>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -414,7 +425,7 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            Ok(c.count_documents(filter.get_doc(), None)
+            Ok(c.count_documents(filter.get_doc())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
         };
@@ -422,7 +433,8 @@ where
         block
     }
 
-    type UpdateFuture<'a, T> = impl Future<Output = Result<Option<T>>>
+    type UpdateFuture<'a, T>
+        = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -460,17 +472,19 @@ where
 
             let filter = filter.get_doc();
             let _ = c
-                .update_one(filter.clone(), doc! {"$set":update}, options)
+                .update_one(filter.clone(), doc! {"$set":update})
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
-            Ok(c.find_one(filter, None)
+            Ok(c.find_one(filter)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
         }
     }
 
-    type UpdateManyFuture<'a, T>= impl Future<Output = Result<u32>>
+    type UpdateManyFuture<'a, T>
+        = impl Future<Output = Result<u32>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -508,7 +522,8 @@ where
 
             let filter = filter.get_doc();
             let res = c
-                .update_many(filter.clone(), doc! {"$set":update}, options)
+                .update_many(filter.clone(), doc! {"$set":update})
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -518,7 +533,8 @@ where
 }
 
 impl MongoStorageAggregationExtends for MongoStore {
-    type AggregationListFuture<'a, T> =  impl Future<Output = Result<Option<Vec<T>>>>
+    type AggregationListFuture<'a, T>
+        = impl Future<Output = Result<Option<Vec<T>>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -545,7 +561,8 @@ impl MongoStorageAggregationExtends for MongoStore {
             let mut cursor = client
                 .database(&db)
                 .collection::<T>(&table)
-                .aggregate(q, options)
+                .aggregate(q)
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -565,7 +582,8 @@ impl MongoStorageAggregationExtends for MongoStore {
         block
     }
 
-    type AggregationFuture<'a, T> =  impl Future<Output = Result<Option<T>>>
+    type AggregationFuture<'a, T>
+        = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -591,7 +609,8 @@ impl MongoStorageAggregationExtends for MongoStore {
             let mut cursor = client
                 .database(&db)
                 .collection::<T>(&table)
-                .aggregate(q, options)
+                .aggregate(q)
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -616,7 +635,8 @@ impl<F> MongoStorageOpExtends<F> for MongoStore
 where
     F: Filter + GetFilter,
 {
-    type IncrFuture<'a, T> = impl Future<Output = Result<Option<T>>>
+    type IncrFuture<'a, T>
+        = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a,
         T: MongoDbModel;
@@ -645,11 +665,12 @@ where
             let filter = filter.get_doc();
 
             let _ = c
-                .update_one(filter.clone(), doc! {"$inc":incr,"$set":update}, options)
+                .update_one(filter.clone(), doc! {"$inc":incr,"$set":update})
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
-            Ok(c.find_one(filter, None)
+            Ok(c.find_one(filter)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
         };
@@ -657,7 +678,8 @@ where
         block
     }
 
-    type BatchRemoveFuture<'a> = impl Future<Output = Result<u64>>
+    type BatchRemoveFuture<'a>
+        = impl Future<Output = Result<u64>>
     where
         Self: 'a;
 
@@ -669,7 +691,7 @@ where
         let c = self.collection::<Unstructed>(&db, &table);
 
         let block = async move {
-            Ok(c.delete_many(filter.get_doc(), None)
+            Ok(c.delete_many(filter.get_doc())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?
                 .deleted_count)

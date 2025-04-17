@@ -72,12 +72,7 @@ impl MongoStore {
             .unwrap_or(100);
         log::info!("max pool size: {}", max_pool_size);
 
-        match mongodb::options::ClientOptions::parse_with_resolver_config(
-            &uri,
-            mongodb::options::ResolverConfig::cloudflare(),
-        )
-        .await
-        {
+        match mongodb::options::ClientOptions::parse(uri).await {
             Ok(mut options) => {
                 options.min_pool_size = Some(1);
                 options.max_pool_size = Some(max_pool_size);
@@ -91,7 +86,7 @@ impl MongoStore {
 }
 
 impl MongoStore {
-    fn collection<'a, T>(&self, db: &str, table: &str) -> mongodb::Collection<T> {
+    fn collection<'a, T: Send + Sync>(&self, db: &str, table: &str) -> mongodb::Collection<T> {
         self.client.database(db).collection::<T>(table)
     }
 }
@@ -101,7 +96,8 @@ where
     T: Object + DeserializeOwned + Serialize + Unpin + Debug,
     F: Filter + GetFilter,
 {
-    type ListFuture<'a> = impl Future<Output = Result<Vec<T>>>
+    type ListFuture<'a>
+        = impl Future<Output = Result<Vec<T>>>
     where
         Self: 'a;
     fn list<'r>(self, q: Condition<F>) -> Self::ListFuture<'r> {
@@ -138,7 +134,8 @@ where
             }
 
             let mut cursor = c
-                .find(filter.get_doc(), Some(opt))
+                .find(filter.get_doc())
+                .with_options(opt)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -158,7 +155,8 @@ where
         block
     }
 
-    type GetFuture<'a> = impl Future<Output =  Result<T>>
+    type GetFuture<'a>
+        = impl Future<Output = Result<T>>
     where
         Self: 'a;
     fn get<'r>(self, q: Condition<F>) -> Self::GetFuture<'r> {
@@ -169,7 +167,7 @@ where
             let c = self.collection::<T>(&db, &table);
 
             if let Some(value) = c
-                .find_one(filter.get_doc(), None)
+                .find_one(filter.get_doc())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?
             {
@@ -182,7 +180,8 @@ where
         block
     }
 
-    type StreamFuture<'a> = impl Future<Output = Result<Receiver<Event<T>>>>
+    type StreamFuture<'a>
+        = impl Future<Output = Result<Receiver<Event<T>>>>
     where
         Self: 'a;
     fn watch<'r>(self, ctx: Context, q: Condition<F>) -> Self::StreamFuture<'r> {
@@ -197,7 +196,7 @@ where
             let (filter_doc, filter_src) = filter.get();
             let collection = client.database(&db).collection::<T>(&table);
             let mut cursor = collection
-                .find(filter_doc.clone(), None)
+                .find(filter_doc.clone())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -206,7 +205,8 @@ where
                 .build();
 
             let mut stream = collection
-                .watch(None, options)
+                .watch()
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
@@ -326,7 +326,8 @@ where
         }
     }
 
-    type SaveFuture<'a> = impl Future<Output =  Result<Option<T>>>
+    type SaveFuture<'a>
+        = impl Future<Output = Result<Option<T>>>
     where
         Self: 'a;
 
@@ -339,12 +340,12 @@ where
             t.update_uid(&uuid());
 
             let insert_one_result = c
-                .insert_one(t, None)
+                .insert_one(t)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             Ok(
-                c.find_one(doc! {"_id":insert_one_result.inserted_id.as_str()}, None)
+                c.find_one(doc! {"_id":insert_one_result.inserted_id.as_str()})
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?,
             )
@@ -353,9 +354,10 @@ where
         block
     }
 
-    type ApplyFuture<'a> = impl Future<Output =  Result<T>>
-        where
-            Self: 'a;
+    type ApplyFuture<'a>
+        = impl Future<Output = Result<T>>
+    where
+        Self: 'a;
     fn apply<'r>(self, t: T, q: Condition<F>) -> Self::ApplyFuture<'r> {
         let Condition {
             db,
@@ -371,13 +373,13 @@ where
         async move {
             let filter = filter.get_doc();
             let old = c
-                .find_one(filter.clone(), None)
+                .find_one(filter.clone())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             if old.is_none() {
                 let _ = c
-                    .insert_one(&t, None)
+                    .insert_one(&t)
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(t);
@@ -387,7 +389,7 @@ where
                 update.update_version(current_time_sess());
 
                 let _ = c
-                    .replace_one(filter, &update, None)
+                    .replace_one(filter, &update)
                     .await
                     .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
                 return Ok(update);
@@ -397,7 +399,8 @@ where
         }
     }
 
-    type RemoveFuture<'a>= impl Future<Output =  Result<()>>
+    type RemoveFuture<'a>
+        = impl Future<Output = Result<()>>
     where
         Self: 'a;
     fn delete<'r>(self, q: Condition<F>) -> Self::RemoveFuture<'r> {
@@ -409,14 +412,15 @@ where
 
         async move {
             let _ = c
-                .delete_many(filter.get_doc(), None)
+                .delete_many(filter.get_doc())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
             Ok(())
         }
     }
 
-    type CountFuture<'a>= impl Future<Output = Result<u64>>
+    type CountFuture<'a>
+        = impl Future<Output = Result<u64>>
     where
         Self: 'a;
 
@@ -427,16 +431,17 @@ where
             } = q;
             let c = self.collection::<T>(&db, &table);
 
-            Ok(c.count_documents(filter.get_doc(), None)
+            Ok(c.count_documents(filter.get_doc())
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?)
         };
         block
     }
 
-    type UpdateFuture<'a> = impl Future<Output =  Result<Option<T>>>
-        where
-            Self: 'a;
+    type UpdateFuture<'a>
+        = impl Future<Output = Result<Option<T>>>
+    where
+        Self: 'a;
     fn update<'r>(self, t: T, q: Condition<F>) -> Self::UpdateFuture<'r> {
         let Condition {
             db,
@@ -466,21 +471,23 @@ where
 
             let filter = filter.get_doc();
             let _ = c
-                .update_one(filter.clone(), doc! {"$set":update}, options)
+                .update_one(filter.clone(), doc! {"$set":update})
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
             let rs = c
-                .find_one(filter, None)
+                .find_one(filter)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
             Ok(rs)
         }
     }
 
-    type UpdateManyFuture<'a> = impl Future<Output =  Result<u32>>
-        where
-            Self: 'a;
+    type UpdateManyFuture<'a>
+        = impl Future<Output = Result<u32>>
+    where
+        Self: 'a;
 
     fn update_many<'r>(self, t: T, q: Condition<F>) -> Self::UpdateManyFuture<'r> {
         let Condition {
@@ -511,7 +518,8 @@ where
 
             let filter = filter.get_doc();
             let res = c
-                .update_many(filter.clone(), doc! {"$set":update}, options)
+                .update_many(filter.clone(), doc! {"$set":update})
+                .with_options(options)
                 .await
                 .map_err(|e| StoreError::ConnectionError(e.to_string()))?;
 
